@@ -1,7 +1,9 @@
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .serializers import TaskSerializer
 from .models import Task
+from .serializers import UserRegistrationSerializer
 
 @api_view(['GET'])
 def getRoutes(request):
@@ -76,6 +78,16 @@ def deleteTask(request, pk):
     task = Task.objects.get(id=pk)
     task.delete()
     return Response("Task has been deleted")
+
+
+@api_view(['POST'])
+def registerAccount(request):
+    if request.method == 'POST':
+        serializer = UserRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response({"message": "User created succssefuly"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
