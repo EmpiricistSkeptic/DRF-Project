@@ -1,7 +1,10 @@
 from rest_framework.serializers import ModelSerializer
+from rest_framework import serializers
 from .models import Task
 from django.contrib.auth.models import User
 from .models import Profile
+from django.contrib.auth import authenticate
+
 
 class TaskSerializer(ModelSerializer):
     class Meta:
@@ -18,6 +21,18 @@ class UserRegistrationSerializer(ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         return user
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        user = authenticate(username=data['username'], password=data['password'])
+        if not user:
+            raise serializers.ValidationError("Invalid username or password.")
+        data['user'] = user
+        return data
 
 
 class ProfileSerializer(ModelSerializer):

@@ -6,6 +6,9 @@ from .models import Task
 from .serializers import UserRegistrationSerializer
 from .models import Profile
 from .serializers import ProfileSerializer
+from rest_framework.authtoken.models import Token
+from .serializers import LoginSerializer
+
 
 @api_view(['GET'])
 def getRoutes(request):
@@ -92,6 +95,28 @@ def registerAccount(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+def loginUser(request):
+    serializer = LoginSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({"token": token.key, "message": "Login successful"}, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def logoutUser(request):
+    try:
+        token = request.auth
+        if token:
+            token.delete()
+            return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
+        return Response({"error": "No token provided"}, status=status.HTTP_400_BAD_REQUEST)
+    except:
+        return Response({"error": "An error occured during logout"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 @api_view(['GET', 'PUT'])
 def userProfile(request):
@@ -111,7 +136,10 @@ def userProfile(request):
                 return Response(serializer.data, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Profile.DoesNotExist:
-            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_DOUND)
+            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
 
 
 
