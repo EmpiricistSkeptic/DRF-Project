@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from .serializers import TaskSerializer
 from .models import Task
 from .serializers import UserRegistrationSerializer
+from .models import Profile
+from .serializers import ProfileSerializer
 
 @api_view(['GET'])
 def getRoutes(request):
@@ -91,7 +93,28 @@ def registerAccount(request):
 
 
 
-    
+@api_view(['GET', 'PUT'])
+def userProfile(request):
+    if request.method == 'GET':
+        try:
+            profile = request.user.profile
+            serializer = ProfileSerializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Profile.DoesNotExist:
+            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+    elif request.method == 'PUT':
+        try:
+            profile = request.user.profile
+            serializer = ProfileSerializer(profile, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Profile.DoesNotExist:
+            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_DOUND)
+
+
+
 
 
 

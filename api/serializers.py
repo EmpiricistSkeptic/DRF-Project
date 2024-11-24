@@ -1,6 +1,7 @@
 from rest_framework.serializers import ModelSerializer
 from .models import Task
 from django.contrib.auth.models import User
+from .models import Profile
 
 class TaskSerializer(ModelSerializer):
     class Meta:
@@ -17,5 +18,12 @@ class UserRegistrationSerializer(ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         return user
+
+
+class ProfileSerializer(ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['bio', 'avatar', 'points', 'level']
+
 
 
