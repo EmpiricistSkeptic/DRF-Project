@@ -2,13 +2,14 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Task(models.Model):
-    body = models.TextField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks', default=1)
+    title = models.TextField()
     description = models.TextField(null=True, blank=True)
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.body[0:50], self.description[0:100]
+        return {self.title[0:50]} - {self.description[0:100]}
     
     class Meta:
         ordering = ['-updated']
