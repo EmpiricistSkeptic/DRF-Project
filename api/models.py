@@ -1,18 +1,21 @@
 from django.db import models
 from django.contrib.auth.models import User
 from datetime import datetime
-
+from datetime import timedelta
 class Task(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks', default=1)
     title = models.TextField()
     description = models.TextField(null=True, blank=True)
-    deadline = models.DateTimeField(default=datetime(2024,11,10,23,59))
+    deadline = models.DateTimeField(default=datetime.now() + timedelta(hours=24))
     completed = models.BooleanField(default=False)
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return {self.title[0:50]} - {self.description[0:100]}
+        title = self.title[:50] if self.title and self.title.strip() else 'Без названия'
+        description = self.description[:100] if self.description and self.description.strip() else 'Нет описания'
+        return f"{title} - {description}"
+
     
     class Meta:
         ordering = ['-updated']

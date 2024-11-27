@@ -49,15 +49,18 @@ def getRoutes(request):
 
 @api_view(['GET'])
 def tasksView(request):
-    tasks = Task.objects.all()
+    tasks = Task.objects.filter(user=request.user, completed=False)
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
 def getTask(request, pk):
-    task = Task.objects.get(id=pk)
-    serializer = TaskSerializer(task, many=False)
-    return Response(serializer.data)
+    try:
+        task = Task.objects.get(id=pk, user=request.user)
+        serializer = TaskSerializer(task, many=False)
+        return Response(serializer.data)
+    except Task.DoesNotExist:
+        return Response({"error": "Task not found or not meant for this user"}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['POST'])
 def createTask(request):
@@ -66,23 +69,46 @@ def createTask(request):
     task = Task.objects.create(
         title = data['title']
     )
+    user = request.user
     serializer = TaskSerializer(task, many=False)
     return Response(serializer.data)
 
 @api_view(['PUT'])
 def updateTask(request, pk):
-    data = request.data
-    task = Task.objects.get(id=pk)
-    serializer = TaskSerializer(task, data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    return Response(serializer.data)
+    try:
+        task = Task.objects.get(id=pk, user=request.user)
+        serializer = TaskSerializer(task, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Task.DoesNotExist:
+        return Response({"error": "Task not found or not owned by the user"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PUT'])
+def completeTask(request, pk):
+    try:
+        task = Task.objects.get(id=pk, user=request.user)  # Получаем задачу по ID и пользователю
+    except Task.DoesNotExist:
+        return Response({"error": "Task not found or not owned by the user"}, status=status.HTTP_404_NOT_FOUND)
+    
+    task.completed = True  # Помечаем задачу как завершённую
+    task.save()  # Сохраняем изменения
+    
+    serializer = TaskSerializer(task)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+    
 
 @api_view(['DELETE'])
 def deleteTask(request, pk):
-    task = Task.objects.get(id=pk)
-    task.delete()
-    return Response("Task has been deleted")
+    try:
+        task = Task.objects.get(id=pk, user=request.user)
+        task.delete()
+        return Response("Task has been deleted")
+    except Task.DoesNotExist:
+        return Response({"error": "Task not found or not owned by the user"}, status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['POST'])
@@ -108,7 +134,7 @@ def loginUser(request):
 @api_view(['POST'])
 def logoutUser(request):
     try:
-        token = request.auth
+        token = request.user.auth_token
         if token:
             token.delete()
             return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)

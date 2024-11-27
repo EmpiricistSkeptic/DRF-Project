@@ -9,6 +9,7 @@ urlpatterns = [
     path('profile/', views.userProfile),
     path('tasks/', views.tasksView),
     path('tasks/create/', views.createTask),
+    path('tasks/complete/<int:pk>/', views.completeTask, name='complete-task'),
     path('tasks/<str:pk>/', views.getTask),
     path('tasks/<str:pk>/update/', views.updateTask),
     path('tasks/<str:pk>/delete/', views.deleteTask),
