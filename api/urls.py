@@ -13,4 +13,7 @@ urlpatterns = [
     path('tasks/<str:pk>/', views.getTask),
     path('tasks/<str:pk>/update/', views.updateTask),
     path('tasks/<str:pk>/delete/', views.deleteTask),
+    path('send_friend_request/<int:user_id>/', views.send_friend_request, name='send_friend_request'),
+    path('sendMessage/', views.sendMessage, name='sendMessage'),
+    path('getMessages/', views.getMessages, name='getMessages'),
 ]

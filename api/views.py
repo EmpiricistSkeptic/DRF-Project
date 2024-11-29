@@ -1,13 +1,12 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .serializers import TaskSerializer
-from .models import Task
-from .serializers import UserRegistrationSerializer
-from .models import Profile
-from .serializers import ProfileSerializer
+from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer
+from .models import Task, Profile, Message, Friendship
 from rest_framework.authtoken.models import Token
-from .serializers import LoginSerializer
+from django.contrib.auth.models import User
+
 
 
 @api_view(['GET'])
@@ -163,6 +162,36 @@ def userProfile(request):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Profile.DoesNotExist:
             return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+def send_friend_request(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    friendship = Friendship.objects.create(user=request.user, friend=user, status='PENDING')
+    serializer = FriendshipSerializer(friendship)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+def sendMessage(request):
+    recipient_id = request.data.get('recipient')
+    content = request.data.get('content')
+
+    recipient = get_object_or_404(User, id=recipient_id)
+    message = Message.objects.create(
+        sender=request.user,
+        recipient=recipient,
+        content=content
+    )
+    serializer = MessageSerializer(message)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+def getMessages(request):
+    messages = Message.objects.filter(recipient=request.user)
+    serializer = MessageSerializer(messages, many=True)
+    return Response(serializer.data)
         
 
 

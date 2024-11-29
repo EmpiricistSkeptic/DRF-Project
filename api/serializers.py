@@ -1,8 +1,7 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from .models import Task
+from .models import Task, Profile, Friendship, Message
 from django.contrib.auth.models import User
-from .models import Profile
 from django.contrib.auth import authenticate
 
 
@@ -39,6 +38,18 @@ class ProfileSerializer(ModelSerializer):
     class Meta:
         model = Profile
         fields = ['bio', 'avatar', 'points', 'level']
+
+
+class FriendshipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Friendship
+        fields = '__all__'
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = '__all__'
 
 
 
