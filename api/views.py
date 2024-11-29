@@ -59,7 +59,8 @@ def getTask(request, pk):
         serializer = TaskSerializer(task, many=False)
         return Response(serializer.data)
     except Task.DoesNotExist:
-        return Response({"error": "Task not found or not meant for this user"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"detail": "Task not found or not owned by this user"}, status=status.HTTP_404_NOT_FOUND)
+
 
 @api_view(['POST'])
 def createTask(request):
@@ -105,7 +106,7 @@ def deleteTask(request, pk):
     try:
         task = Task.objects.get(id=pk, user=request.user)
         task.delete()
-        return Response("Task has been deleted")
+        return Response({"detail": "Task has been deleted"}, status=status.HTTP_204_NO_CONTENT)
     except Task.DoesNotExist:
         return Response({"error": "Task not found or not owned by the user"}, status=status.HTTP_404_NOT_FOUND)
 
