@@ -2,8 +2,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer
-from .models import Task, Profile, Message, Friendship
+from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer
+from .models import Task, Profile, Message, Friendship, Notification
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 
@@ -167,30 +167,60 @@ def userProfile(request):
 @api_view(['POST'])
 def send_friend_request(request, user_id):
     user = get_object_or_404(User, id=user_id)
+    if Friendship.objects.filter(user=request.user, friend=user).exists():
+        return Response({'detail': 'Friend request already sent.'}, status=status.HTTP_400_BAD_REQUEST)
     friendship = Friendship.objects.create(user=request.user, friend=user, status='PENDING')
+    Notification.objects.create(user=user, notification_type='friend_request', message=f"{request.user.username} sent you a friend request.")
     serializer = FriendshipSerializer(friendship)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
 def sendMessage(request):
-    recipient_id = request.data.get('recipient')
+    sender = request.user
+    recipient_id = request.data.get('recipient_id')
     content = request.data.get('content')
 
+    # Проверка на обязательные данные
+    if not recipient_id or not content:
+        return Response({'detail': 'Recipient and content are required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Получаем получателя или выдаем 404, если не найден
     recipient = get_object_or_404(User, id=recipient_id)
+    
+    # Создаем сообщение
     message = Message.objects.create(
         sender=request.user,
         recipient=recipient,
         content=content
     )
+    
+    # Создаем уведомление для получателя
+    Notification.objects.create(
+        user=recipient,
+        notification_type='message',
+        message=f"You have a new message from {sender.username}."
+    )
+
+    # Сериализация сообщения
     serializer = MessageSerializer(message)
+    
+    # Возвращаем успешный ответ с сериализованными данными
     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 
 @api_view(['POST'])
 def getMessages(request):
     messages = Message.objects.filter(recipient=request.user)
     serializer = MessageSerializer(messages, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def getNotifications(request):
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    serializer = NotificationSerializer(notifications, many=True)
     return Response(serializer.data)
         
 

@@ -16,4 +16,5 @@ urlpatterns = [
     path('send_friend_request/<int:user_id>/', views.send_friend_request, name='send_friend_request'),
     path('sendMessage/', views.sendMessage, name='sendMessage'),
     path('getMessages/', views.getMessages, name='getMessages'),
+    path('notifications/', views.getNotifications, name='getNotifications'),
 ]
