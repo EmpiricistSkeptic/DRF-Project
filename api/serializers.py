@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from .models import Task, Profile, Friendship, Message, Notification
+from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 
@@ -57,6 +57,20 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = ['id', 'user', 'notification_type', 'message', 'created_at', 'is_read']
         read_only_fields = ['created_at']
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    members = serializers.StringRelatedField(many=True, read_only=True)
+    class Meta:
+        model = Group
+        fields = ['id', 'name', 'description', 'created_by', 'members', 'created_at']
+
+
+class GroupMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GroupMessage
+        fields = ['id', 'group', 'sender', 'content', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 
 

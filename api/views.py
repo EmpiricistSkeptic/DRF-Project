@@ -1,9 +1,10 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer
-from .models import Task, Profile, Message, Friendship, Notification
+from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer, GroupMessageSerializer, GroupSerializer
+from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 
@@ -252,7 +253,74 @@ def getNotifications(request):
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
     serializer = NotificationSerializer(notifications, many=True)
     return Response(serializer.data)
-        
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def createGroup(request):
+    data = request.data
+    group = Group.objects.create(
+        name=data['name'],
+        description=data['description', ''],
+        created_by=request.user 
+    )
+    group.members.add(request.user)
+
+    serializer = GroupSerializer(group)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listGroups(request):
+    groups = Group.objects.filter(members=request.user)
+    serializer = GroupSerializer(groups, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def joinGroup(request, group_id):
+    group = get_object_or_404(Group, id=group_id)
+    group.members.add(request.user)
+    return Response({'message': f'You joined the group {group.name}'}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def leaveGroup(request, group_id):
+    group = get_object_or_404(Group, id=group_id)
+    group.members.remove(request.user)
+    return Response({'messgae': f'You left the group {group.name}'}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def sendGroupMessage(request, group_id):
+    group = get_object_or_404(Group, id=group_id)
+    if request.user not in group.members.all():
+        return Response({'error': 'You are not a member of this group'}, status=status.HTTP_403_FORBIDDEN)
+    data = request.data
+    message = GroupMessage.objects.create(
+        group=group,
+        sender=request.user,
+        content=data['content']
+    )
+    serializer = GroupMessageSerializer(message)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getGroupMessages(request, group_id):
+    group = get_object_or_404(Group, id=group_id)
+    if request.user not in group.members.all():
+        return Response({'error': 'You are not a member of this group'}, status=status.HTTP_403_FORBIDDEN)
+    messages = GroupMessage.objects.filter(group=group)
+    serializer = GroupMessageSerializer(messages, many=True)
+    return Response(serializer.data)
+
+
+
+
 
 
 

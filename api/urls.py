@@ -19,4 +19,10 @@ urlpatterns = [
     path('sendMessage/', views.sendMessage, name='sendMessage'),
     path('getMessages/', views.getMessages, name='getMessages'),
     path('notifications/', views.getNotifications, name='getNotifications'),
+    path('groups/', views.listGroups, name='listGroups'),
+    path('groups/create/', views.createGroup, name='createGroup'),
+    path('groups/<int:group_id>/join/', views.joinGroup, name='joinGroup'),
+    path('groups/<int:group_id>/leave/', views.leaveGroup, name='leaveGroup'),
+    path('groups/<int:group_id>/messages/', views.getGroupMessages, name='getGroupMessages'),
+    path('groups/<int:group_id>/messages/send/', views.sendGroupMessage, name='sendGroupMessage')
 ]
