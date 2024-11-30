@@ -46,7 +46,7 @@ class Message(models.Model):
 class Friendship(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_sender')
     friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_reciever')
-    status = models.CharField(max_length=10, choices=[('PENDING', 'Pending'), ('ACCEPTED', 'Accepted'), ('REJECTED', 'Rejected')], default='PENDING')
+    status = models.CharField(max_length=10, choices=[('PENDING', 'Pending'), ('ACCEPTED', 'Accepted'), ('REJECTED', 'Rejected'), ('FRIEND', 'Friend')], default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -58,10 +58,12 @@ class Notification(models.Model):
         ('friend_request', 'Friend Request'),
         ('message', 'Message'),
         ('task_deadline', 'Task Deadline'),
+        ('friend_request_accepted', 'Friend Request Accepted'),
+        ('friend_request_rejected', 'Friend Request Rejected')
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    notification_type = models.CharField(max_length=30, choices=NOTIFICATION_TYPES)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)

@@ -177,6 +177,35 @@ def send_friend_request(request, user_id):
 
 
 @api_view(['POST'])
+def accept_friend_request(request, user_id):
+    friendship = get_object_or_404(Friendship, user=user_id, friend=request.user, status='PENDING')
+    friendship.status = 'ACCEPTED'
+    friendship.save()
+
+    Notification.objects.create(
+        user=friendship.user,
+        notification_type='friend_request_accepted',
+        message=f"{request.user.username} accepted your friend request",
+    )
+    Friendship.objects.create(user=friendship.user, friend=friendship.friend, status='FRIEND')
+    Friendship.objects.create(user=friendship.friend, friend=friendship.user, status='FRIEND')
+
+    return Response({'detail': 'Friend request accepted'}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def reject_friend_request(request, user_id):
+    friendship = get_object_or_404(Friendship, user=user_id, friend=request.user, status='PENDING')
+    friendship.delete()
+
+    Notification.objects.create(
+        user=friendship.user,
+        notification_type='friend_request_rejected',
+        message=f"{request.user.username} rejected your friend request."
+    )
+    return Response({'detail': 'Friend request rejected'}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
 def sendMessage(request):
     sender = request.user
     recipient_id = request.data.get('recipient_id')
