@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage
+from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 
@@ -70,6 +70,20 @@ class GroupMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = GroupMessage
         fields = ['id', 'group', 'sender', 'content', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class PomodoroTimerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PomodoroTimer
+        fields = ['id', 'user', 'start_timer', 'duration_minutes', 'short_break_minutes', 'long_break_minutes', 'is_completed']
+        read_only_fields = ['id', 'start_timer']
+
+
+class EducationalContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EducationalContent
+        fields = ['id', 'title', 'content', 'category', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 

@@ -3,8 +3,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer, GroupMessageSerializer, GroupSerializer
-from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage
+from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer, GroupMessageSerializer, GroupSerializer, PomodoroTimerSerializer, EducationalContentSerializer
+from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 
@@ -318,6 +318,41 @@ def getGroupMessages(request, group_id):
     serializer = GroupMessageSerializer(messages, many=True)
     return Response(serializer.data)
 
+
+@api_view(['POST'])
+def start_pomodoro_session(request):
+    serializer = PomodoroTimerSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_pomodoro_sessions(request):
+    sessions = PomodoroTimer.objects.filter(user=request.user)
+    serializer = PomodoroTimerSerializer(sessions, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def get_educational_content(request):
+    category = request.query_params.get('category', None)
+    if category:
+        contents = EducationalContent.objects.filter(category=category)
+    else:
+        contents = EducationalContent.objects,all()
+        serializer = EducationalContentSerializer(contents, many=True)
+        return Response(serializer.data)
+    
+
+@api_view(['POST'])
+def add_educational_content(request):
+    serializer = EducationalContentSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

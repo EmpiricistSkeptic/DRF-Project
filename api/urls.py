@@ -24,5 +24,9 @@ urlpatterns = [
     path('groups/<int:group_id>/join/', views.joinGroup, name='joinGroup'),
     path('groups/<int:group_id>/leave/', views.leaveGroup, name='leaveGroup'),
     path('groups/<int:group_id>/messages/', views.getGroupMessages, name='getGroupMessages'),
-    path('groups/<int:group_id>/messages/send/', views.sendGroupMessage, name='sendGroupMessage')
+    path('groups/<int:group_id>/messages/send/', views.sendGroupMessage, name='sendGroupMessage'),
+    path('pomodoro/start/', views.start_pomodoro_session, name='start_pomodoro_sessions'),
+    path('pomodoro/', views.get_pomodoro_sessions, name='get_pomodoro_sessions'),
+    path('educational-content/', views.get_educational_content, name='get_educational_content'),
+    path('educational-content/add/', views.add_educational_content, name='add_educational_content'), 
 ]
