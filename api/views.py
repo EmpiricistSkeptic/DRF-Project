@@ -7,6 +7,7 @@ from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSeri
 from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
+from rest_framework.pagination import PageNumberPagination
 
 
 
@@ -334,16 +335,30 @@ def get_pomodoro_sessions(request):
     serializer = PomodoroTimerSerializer(sessions, many=True)
     return Response(serializer.data)
 
+class EducationContentPagination(PageNumberPagination):
+    page_size = 10
 
 @api_view(['GET'])
 def get_educational_content(request):
     category = request.query_params.get('category', None)
+    contents = EducationalContent.objects.all()
     if category:
         contents = EducationalContent.objects.filter(category=category)
-    else:
-        contents = EducationalContent.objects,all()
-        serializer = EducationalContentSerializer(contents, many=True)
+    paginator = EducationContentPagination()
+    result_page = paginator.paginate_queryset(contents, request)
+    seializer = EducationalContentSerializer(result_page, many=True)
+    return paginator.get_paginated_response(seializer.data)
+
+
+@api_view(['GET'])
+def view_educational_content(request, content_id):
+    try:
+        content = EducationalContent.objects.get(id=content_id)
+        content.increment_views()
+        serializer = EducationalContentSerializer(content)
         return Response(serializer.data)
+    except EducationalContent.DoesNotExist:
+        return Response({'error': 'Content not found'}, status=status.HTTP_404_NOT_FOUND)
     
 
 @api_view(['POST'])
@@ -353,6 +368,47 @@ def add_educational_content(request):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+def delete_educational_content(request, content_id):
+    try:
+        content = EducationalContent.objects.get(id=content_id)
+        content.delete()
+        return Response({'message': 'Content deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+    except EducationalContent.DoesNotExist:
+        return Response({'error': 'Content not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
+
+@api_view(['PUT'])
+def update_educational_content(request, content_id):
+    try:
+        content = EducationalContent.objects.get(id=content_id)
+        serializer = EducationalContentSerializer(content, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except EducationalContent.DoesNotExist:
+        return Response({'error': 'Content not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PATCH'])
+def update_pomodoro_session(request, pk):
+    session = get_object_or_404(PomodoroTimer, pk=pk, user=request.user)
+    serializer = PomodoroTimerSerializer(session, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+def delete_pomodoro_session(request, pk):
+    session = get_object_or_404(PomodoroTimer, pk=pk, user=request.user)
+    serializer = PomodoroTimerSerializer(session)
+    session.delete()
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
