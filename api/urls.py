@@ -34,4 +34,7 @@ urlpatterns = [
     path('educational-content/add/', views.add_educational_content, name='add_educational_content'),
     path('educational-content/<int:content_id>/delete/', views.delete_educational_content, name='delete_educational_content'),
     path('educational-content/<int:content_id>/update/', views.update_educational_content, name='update_educational_content'),
+    path('educational-content/search/', views.search_educational_content, name='search_educational_content'),
+    path('get-calories/', views.get_calories, name='get_calories'),
+    path('calories-by-days/<str:period>/', views.get_calories_by_days, name='get_calories_by_days'),
 ]

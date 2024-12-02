@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent
+from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 
@@ -87,4 +87,8 @@ class EducationalContentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
-
+class ConsumedCaloriesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConsumedCalories
+        fields = ['id', 'user', 'product_name', 'calories', 'protein', 'fat', 'carbs', 'weight', 'data']
+        read_only_fields = ['id', 'calories', 'protein', 'fat', 'carbs', 'date']

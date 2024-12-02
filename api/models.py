@@ -118,6 +118,20 @@ class EducationalContent(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ConsumedCalories(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product_name = models.CharField(max_length=200)
+    weight = models.FloatField()
+    calories = models.FloatField()
+    protein = models.FloatField()
+    fat = models.FloatField()
+    carbs = models.FloatField()
+    consumed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.product_name} ({self.calories} kkal)'
     
 
     

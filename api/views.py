@@ -3,11 +3,16 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer, GroupMessageSerializer, GroupSerializer, PomodoroTimerSerializer, EducationalContentSerializer
-from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent
+from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer, GroupMessageSerializer, GroupSerializer, PomodoroTimerSerializer, EducationalContentSerializer, ConsumedCaloriesSerializer
+from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
+from django.db.models import Sum, DateField
+from django.db.models.functions import TruncDate
+import requests
+from django.utils.timezone import now, timedelta
 
 
 
@@ -330,10 +335,31 @@ def start_pomodoro_session(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_pomodoro_sessions(request):
     sessions = PomodoroTimer.objects.filter(user=request.user)
     serializer = PomodoroTimerSerializer(sessions, many=True)
     return Response(serializer.data)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_pomodoro_session(request, pk):
+    session = get_object_or_404(PomodoroTimer, pk=pk, user=request.user)
+    serializer = PomodoroTimerSerializer(session, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_pomodoro_session(request, pk):
+    session = get_object_or_404(PomodoroTimer, pk=pk, user=request.user)
+    serializer = PomodoroTimerSerializer(session)
+    session.delete()
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 class EducationContentPagination(PageNumberPagination):
     page_size = 10
@@ -362,6 +388,7 @@ def view_educational_content(request, content_id):
     
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def add_educational_content(request):
     serializer = EducationalContentSerializer(data=request.data)
     if serializer.is_valid():
@@ -371,6 +398,7 @@ def add_educational_content(request):
 
 
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_educational_content(request, content_id):
     try:
         content = EducationalContent.objects.get(id=content_id)
@@ -381,6 +409,7 @@ def delete_educational_content(request, content_id):
     
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def update_educational_content(request, content_id):
     try:
         content = EducationalContent.objects.get(id=content_id)
@@ -393,22 +422,82 @@ def update_educational_content(request, content_id):
         return Response({'error': 'Content not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view(['PATCH'])
-def update_pomodoro_session(request, pk):
-    session = get_object_or_404(PomodoroTimer, pk=pk, user=request.user)
-    serializer = PomodoroTimerSerializer(session, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def search_educational_content(request):
+    query = request.query_params.get('query', None)
+    if query:
+        contents = EducationalContent.objects.filter(Q(title__icontains=query) | Q(content__icontains=query))
+        serializer = EducationalContentSerializer(contents, many=True)
+        return Response(serializer.data)
+    return Response({'error': 'Query parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['DELETE'])
-def delete_pomodoro_session(request, pk):
-    session = get_object_or_404(PomodoroTimer, pk=pk, user=request.user)
-    serializer = PomodoroTimerSerializer(session)
-    session.delete()
-    return Response(serializer.data, status=status.HTTP_200_OK)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def get_calories(request):
+    API_KEY = "1a1b7806964c5865d8bcb89cffbd73c8"  # Ваш ключ к API Nutritionix
+    APP_ID = "faf1a44a"     # Ваш App ID от Nutritionix
+    endpoint = f"https://trackapi.nutritionix.com/v2/natural/nutrients"
+    
+    headers = {
+        'x-app-id': APP_ID,
+        'x-app-key': API_KEY,
+        'Content-Type': 'application/json',
+    }
+
+    product_name = request.data.get('product_name')
+    weight = request.data.get('weight')
+    if not product_name or not weight:
+        return Response({'error': 'Product name and weight are required.'}, status=400)
+    body = {
+        'query': f'{weight}g {product_name}',
+        'timezone': 'Europe/Ukraine'
+    }
+    response = request.post(endpoint, headers=headers, json=body)
+    if response.status_code == 200:
+        data = response.json()
+        nutrients = data['foods'][0]
+        result = {
+            'name': nutrients['product_name'],
+            'calories': nutrients['nf_calories'],
+            'protein': nutrients['nf_protein'],
+            'fat': nutrients['nf_fat'],
+            'carbs': nutrients['nf_carbs'],
+        }
+        
+        serializer = ConsumedCaloriesSerializer(data=result)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+        return Response(serializer.data, status=201)
+    else:
+        return Response({'error': 'Failed to fetch data from Nutritionx.'}, status=response.status_code)
+    
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_calories_by_days(request, period):
+    today = now().date()
+    if period == 'week':
+        start_date = today - timedelta(days=7)
+    elif period == 'month':
+        start_date = today - timedelta(days=30)
+    else:
+        return Response({'error': 'Invalid period specified.'}, status=400)
+    
+    records = (
+        ConsumedCalories.objects.filter(
+            user=request.user,
+            created_at__date__gte=start_date).annotate(date=TruncDate('created_at')).values('data').annotate(total_calories=Sum('calories'),total_proteins=Sum('protein'), total_fat=Sum('fat'), total_carbs=Sum('carbs')).order_by('date')
+
+    )
+    return Response(list(records), status=200)
+    
+
+
+
+
 
 
 
