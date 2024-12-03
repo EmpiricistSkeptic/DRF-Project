@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 
 urlpatterns = [
     path('', views.getRoutes),
@@ -37,4 +39,6 @@ urlpatterns = [
     path('educational-content/search/', views.search_educational_content, name='search_educational_content'),
     path('get-calories/', views.get_calories, name='get_calories'),
     path('calories-by-days/<str:period>/', views.get_calories_by_days, name='get_calories_by_days'),
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
