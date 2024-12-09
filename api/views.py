@@ -55,7 +55,7 @@ def getRoutes(request):
 
 @api_view(['GET'])
 def tasksView(request):
-    tasks = Task.objects.filter(user=request.user, completed=False)
+    tasks = Task.objects.all()
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data)
 
