@@ -3,6 +3,7 @@ from celery.schedules import crontab
 import dj_database_url
 import os
 import django_heroku
+from dotenv import load_dotenv
 
 
 
@@ -78,12 +79,21 @@ TEMPLATES = [
 WSGI_APPLICATION = "myproject.wsgi.application"
 
 
+load_dotenv()
+
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
 DATABASES = {
-    "default": dj_database_url.config(conn_max_age=600)
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL')
+    )
 }
+
+
+
+
 
 
 # Password validation
