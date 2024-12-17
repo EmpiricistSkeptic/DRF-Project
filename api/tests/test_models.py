@@ -1,7 +1,7 @@
 # tests.py
 from django.test import TestCase
 from django.utils import timezone
-from api.models import Task
+from api.models import Task, Profile
 from django.contrib.auth.models import User
 from datetime import timedelta
 
@@ -47,4 +47,63 @@ class TaskModelTest(TestCase):
     def test_task_association_with_user(self):
         # Проверка, что задача привязана к пользователю
         self.assertEqual(self.task.user.username, "testuser")  # Проверяем, что задача связана с правильным пользователем
+
+
+class ProfileModelTest(TestCase):
+
+    def setUp(self):
+        # Create a user instance
+        self.user = User.objects.create_user(username="testuser", password="testpassword")
+
+    def test_profile_creation(self):
+        """Test that the profile is created when a user is created"""
+        profile = Profile.objects.create(user=self.user)
+
+        # Check if the profile is created
+        self.assertIsInstance(profile, Profile)
+        self.assertEqual(profile.user.username, self.user.username)
+        self.assertEqual(profile.points, 0)  # Default value
+        self.assertEqual(profile.level, 1)   # Default value
+
+    def test_profile_str_method(self):
+        """Test the __str__ method of the Profile model"""
+        profile = Profile.objects.create(user=self.user)
+
+        # Check if the string representation of the profile is correct
+        self.assertEqual(str(profile), f"{self.user.username}'s Profile")
+
+    def test_bio_field(self):
+        """Test that bio field is blank by default"""
+        profile = Profile.objects.create(user=self.user)
+        self.assertEqual(profile.bio, None)
+
+    def test_avatar_field(self):
+        """Test that avatar field is blank by default"""
+        profile = Profile.objects.create(user=self.user)
+        self.assertEqual(profile.avatar, None)
+
+    def test_points_field(self):
+        """Test that points field defaults to 0"""
+        profile = Profile.objects.create(user=self.user)
+        self.assertEqual(profile.points, 0)
+
+    def test_level_field(self):
+        """Test that level field defaults to 1"""
+        profile = Profile.objects.create(user=self.user)
+        self.assertEqual(profile.level, 1)
+
+    def test_profile_update(self):
+        """Test updating profile fields"""
+        profile = Profile.objects.create(user=self.user)
+        profile.bio = "Updated bio"
+        profile.points = 100
+        profile.level = 2
+        profile.save()
+
+        # Fetch the updated profile
+        updated_profile = Profile.objects.get(user=self.user)
+        self.assertEqual(updated_profile.bio, "Updated bio")
+        self.assertEqual(updated_profile.points, 100)
+        self.assertEqual(updated_profile.level, 2)
+
 
