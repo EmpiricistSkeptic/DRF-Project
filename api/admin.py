@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories
+from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, Achievement
 
 admin.site.register(Task)
 admin.site.register(Profile)
@@ -11,4 +11,5 @@ admin.site.register(GroupMessage)
 admin.site.register(PomodoroTimer)
 admin.site.register(EducationalContent)
 admin.site.register(ConsumedCalories)
+admin.site.register(Achievement)
 

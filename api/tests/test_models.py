@@ -1,4 +1,3 @@
-# tests.py
 from django.test import TestCase
 from django.utils import timezone
 from api.models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories
@@ -689,7 +688,7 @@ class ConsumedCaloriesModelTest(TestCase):
                 calories=50.0,
                 protein=2.0,
                 fat=3.0,
-                carbs=-10.0  # Неверное значение для углеводов
+                carbs=-10.0  
             )
 
 

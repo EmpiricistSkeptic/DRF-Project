@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories
+from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, Achievement, UserAchievement
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 
@@ -34,10 +34,13 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
-class ProfileSerializer(ModelSerializer):
+class ProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    
     class Meta:
         model = Profile
-        fields = ['bio', 'avatar', 'points', 'level']
+        fields = ['username', 'email', 'bio', 'avatar', 'exp', 'level']
 
 
 class FriendshipSerializer(serializers.ModelSerializer):
@@ -92,3 +95,16 @@ class ConsumedCaloriesSerializer(serializers.ModelSerializer):
         model = ConsumedCalories
         fields = ['id', 'user', 'product_name', 'calories', 'protein', 'fat', 'carbs', 'weight', 'data']
         read_only_fields = ['id', 'calories', 'protein', 'fat', 'carbs', 'date']
+
+
+class AchievementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Achievement
+        fields = ['id', 'title', 'description', 'icon']
+
+
+class UserAchievementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserAchievement
+        fields = ['achievement', 'unlocked', 'unlocked_at']
+        

@@ -64,7 +64,7 @@ def tasksView(request):
 def getTask(request, pk):
     try:
         task = Task.objects.get(id=pk, user=request.user)
-        serializer = TaskSerializer(task, many=False)
+        serializer = TaskSerializer(task)
         return Response(serializer.data)
     except Task.DoesNotExist:
         return Response({"detail": "Task not found or not owned by this user"}, status=status.HTTP_404_NOT_FOUND)
@@ -72,14 +72,14 @@ def getTask(request, pk):
 
 @api_view(['POST'])
 def createTask(request):
-    data = request.data
+    serializer = TaskSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    task = Task.objects.create(
-        title = data['title']
-    )
-    user = request.user
-    serializer = TaskSerializer(task, many=False)
-    return Response(serializer.data)
+
+
 
 @api_view(['PUT'])
 def updateTask(request, pk):
@@ -88,7 +88,7 @@ def updateTask(request, pk):
         serializer = TaskSerializer(task, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     except Task.DoesNotExist:
         return Response({"error": "Task not found or not owned by the user"}, status=status.HTTP_404_NOT_FOUND)
@@ -97,12 +97,12 @@ def updateTask(request, pk):
 @api_view(['PUT'])
 def completeTask(request, pk):
     try:
-        task = Task.objects.get(id=pk, user=request.user)  # Получаем задачу по ID и пользователю
+        task = Task.objects.get(id=pk, user=request.user)  
     except Task.DoesNotExist:
         return Response({"error": "Task not found or not owned by the user"}, status=status.HTTP_404_NOT_FOUND)
     
-    task.completed = True  # Помечаем задачу как завершённую
-    task.save()  # Сохраняем изменения
+    task.completed = True  
+    task.save()  
     
     serializer = TaskSerializer(task)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -153,6 +153,7 @@ def logoutUser(request):
 
 
 @api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
 def userProfile(request):
     if request.method == 'GET':
         try:
