@@ -3,7 +3,7 @@ services:
     name: my-django-backend
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn myproject.wsgi:application
+    startCommand: python manage.py migrate && gunicorn myproject.wsgi:application
     envVars:
       - key: SECRET_KEY
         sync: false  # Это означает, что ключ нужно добавить вручную в Render
