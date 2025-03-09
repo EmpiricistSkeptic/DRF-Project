@@ -105,7 +105,7 @@ class GroupMessage(models.Model):
 
 class PomodoroTimer(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pomodoro_sessions')
-    start_time = models.DateTimeField(auto_now_add=True)
+    start_timer = models.DateTimeField(auto_now_add=True)
     duration_minutes = models.IntegerField(default=25)
     short_break_minutes = models.IntegerField(default=5)
     long_break_minutes = models.IntegerField(default=15)
