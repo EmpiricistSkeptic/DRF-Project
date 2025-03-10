@@ -13,11 +13,14 @@ DIFFICULTY_CHOICES = [
     ('E', 'E'),
 ]
 
+def default_deadline():
+    return now() + timedelta(hours=24)
+
 class Task(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
     title = models.TextField()
     description = models.TextField(null=True, blank=True)
-    deadline = models.DateTimeField(default=lambda: now() + timedelta(hours=24))
+    deadline = models.DateTimeField(default=default_deadline)
     completed = models.BooleanField(default=False)
     difficulty = models.CharField(max_length=1, choices=DIFFICULTY_CHOICES, default='E')
     exp = models.PositiveIntegerField(default=0)
@@ -25,9 +28,9 @@ class Task(models.Model):
     created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        title = self.title[:50] if self.title and self.title.strip() else 'Без названия'
-        description = self.description[:100] if self.description and self.description.strip() else 'Нет описания'
-        return f"{title} - {description}"
+        title_display = self.title[:50] if self.title and self.title.strip() else 'Без названия'
+        description_display = self.description[:100] if self.description and self.description.strip() else 'Нет описания'
+        return f"{title_display} - {description_display}"
 
     
     class Meta:
