@@ -93,8 +93,9 @@ class EducationalContentSerializer(serializers.ModelSerializer):
 class ConsumedCaloriesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConsumedCalories
-        fields = ['id', 'user', 'product_name', 'calories', 'protein', 'fat', 'carbs', 'weight', 'data']
-        read_only_fields = ['id', 'calories', 'protein', 'fat', 'carbs', 'date']
+        fields = ['id', 'user', 'product_name', 'calories', 'protein', 'fat', 'carbs', 'weight']
+        read_only_fields = ['id', 'user', 'calories', 'protein', 'fat', 'carbs']
+
 
 
 class AchievementSerializer(serializers.ModelSerializer):

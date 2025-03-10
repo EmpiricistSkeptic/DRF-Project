@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from datetime import datetime
 from datetime import timedelta
+from django.utils.timezone import now
 
 DIFFICULTY_CHOICES = [
     ('S', 'S'),
@@ -13,10 +14,10 @@ DIFFICULTY_CHOICES = [
 ]
 
 class Task(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks', default=1)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
     title = models.TextField()
     description = models.TextField(null=True, blank=True)
-    deadline = models.DateTimeField(default=datetime.now() + timedelta(hours=24))
+    deadline = models.DateTimeField(default=lambda: now() + timedelta(hours=24))
     completed = models.BooleanField(default=False)
     difficulty = models.CharField(max_length=1, choices=DIFFICULTY_CHOICES, default='E')
     exp = models.PositiveIntegerField(default=0)
@@ -57,7 +58,7 @@ class Message(models.Model):
 
 class Friendship(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_sender')
-    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_reciever')
+    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_receiver')
     status = models.CharField(max_length=10, choices=[('PENDING', 'Pending'), ('ACCEPTED', 'Accepted'), ('REJECTED', 'Rejected'), ('FRIEND', 'Friend')], default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -87,7 +88,7 @@ class Group(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_groups')
-    members = models.ManyToManyField(User, related_name='custome_groups_members')
+    members = models.ManyToManyField(User, related_name='custom_groups_members')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

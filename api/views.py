@@ -12,7 +12,8 @@ from django.db.models import Q
 from django.db.models import Sum, DateField
 from django.db.models.functions import TruncDate
 import requests
-from django.utils.timezone import now, timedelta
+from django.utils.timezone import now
+from datetime import timedelta
 
 
 
@@ -54,6 +55,7 @@ def getRoutes(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def tasksView(request):
     tasks = Task.objects.filter(user=request.user, completed=False)
     serializer = TaskSerializer(tasks, many=True)
@@ -61,6 +63,7 @@ def tasksView(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def getTask(request, pk):
     try:
         task = Task.objects.get(id=pk, user=request.user)
@@ -71,6 +74,7 @@ def getTask(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def createTask(request):
     serializer = TaskSerializer(data=request.data)
     if serializer.is_valid():
@@ -82,6 +86,7 @@ def createTask(request):
 
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def updateTask(request, pk):
     try:
         task = Task.objects.get(id=pk, user=request.user)
@@ -95,6 +100,7 @@ def updateTask(request, pk):
 
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def completeTask(request, pk):
     try:
         task = Task.objects.get(id=pk, user=request.user)  
@@ -110,6 +116,7 @@ def completeTask(request, pk):
     
 
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def deleteTask(request, pk):
     try:
         task = Task.objects.get(id=pk, user=request.user)
@@ -121,12 +128,13 @@ def deleteTask(request, pk):
 
 @api_view(['POST'])
 def registerAccount(request):
-    if request.method == 'POST':
-        serializer = UserRegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response({"message": "User created succssefuly"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer = UserRegistrationSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 @api_view(['POST'])
@@ -142,64 +150,75 @@ def loginUser(request):
 @api_view(['POST'])
 def logoutUser(request):
     try:
-        token = request.user.auth_token
+        token = getattr(request.user, 'auth_token', None)
         if token:
             token.delete()
             return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
-        return Response({"error": "No token provided"}, status=status.HTTP_400_BAD_REQUEST)
-    except:
-        return Response({"error": "An error occured during logout"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "No token found"}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"error": f"An error occurred during logout: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
 def userProfile(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile:
+        return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
     if request.method == 'GET':
-        try:
-            profile = request.user.profile
-            serializer = ProfileSerializer(profile)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Profile.DoesNotExist:
-            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ProfileSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     elif request.method == 'PUT':
-        try:
-            profile = request.user.profile
-            serializer = ProfileSerializer(profile, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Profile.DoesNotExist:
-            return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ProfileSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def send_friend_request(request, user_id):
+    if request.user.id == user_id:
+        return Response({'detail': "You can't send a friend request to yourself."}, status=status.HTTP_400_BAD_REQUEST)
+
     user = get_object_or_404(User, id=user_id)
+
     if Friendship.objects.filter(user=request.user, friend=user).exists():
-        return Response({'detail': 'Friend request already sent.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': 'Friendship or request already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
     friendship = Friendship.objects.create(user=request.user, friend=user, status='PENDING')
     Notification.objects.create(user=user, notification_type='friend_request', message=f"{request.user.username} sent you a friend request.")
+
     serializer = FriendshipSerializer(friendship)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def accept_friend_request(request, user_id):
-    friendship = get_object_or_404(Friendship, user=user_id, friend=request.user, status='PENDING')
-    friendship.status = 'ACCEPTED'
-    friendship.save()
+    friendship = get_object_or_404(Friendship, user__id=user_id, friend=request.user, status='PENDING')
+
+    # Удаляем старую заявку
+    friendship.delete()
+
+    # Создаём новую дружбу (одна запись автоматически означает взаимную дружбу)
+    Friendship.objects.create(user=request.user, friend=friendship.user, status='FRIEND')
 
     Notification.objects.create(
         user=friendship.user,
         notification_type='friend_request_accepted',
         message=f"{request.user.username} accepted your friend request",
     )
-    Friendship.objects.create(user=friendship.user, friend=friendship.friend, status='FRIEND')
-    Friendship.objects.create(user=friendship.friend, friend=friendship.user, status='FRIEND')
 
     return Response({'detail': 'Friend request accepted'}, status=status.HTTP_200_OK)
+
 
 @api_view(['POST'])
 def reject_friend_request(request, user_id):
@@ -215,41 +234,36 @@ def reject_friend_request(request, user_id):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def sendMessage(request):
     sender = request.user
     recipient_id = request.data.get('recipient_id')
-    content = request.data.get('content')
+    content = request.data.get('content', '').strip()
 
-    # Проверка на обязательные данные
     if not recipient_id or not content:
         return Response({'detail': 'Recipient and content are required'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    # Получаем получателя или выдаем 404, если не найден
+
+    if sender.id == recipient_id:
+        return Response({'detail': 'You cannot send a message to yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+
     recipient = get_object_or_404(User, id=recipient_id)
-    
-    # Создаем сообщение
-    message = Message.objects.create(
-        sender=request.user,
-        recipient=recipient,
-        content=content
-    )
-    
-    # Создаем уведомление для получателя
+
+    message = Message.objects.create(sender=sender, recipient=recipient, content=content)
+
     Notification.objects.create(
         user=recipient,
         notification_type='message',
         message=f"You have a new message from {sender.username}."
     )
 
-    # Сериализация сообщения
     serializer = MessageSerializer(message)
-    
-    # Возвращаем успешный ответ с сериализованными данными
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 
+
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def getMessages(request):
     messages = Message.objects.filter(recipient=request.user)
     serializer = MessageSerializer(messages, many=True)
@@ -257,6 +271,7 @@ def getMessages(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def getNotifications(request):
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
     serializer = NotificationSerializer(notifications, many=True)
@@ -269,7 +284,7 @@ def createGroup(request):
     data = request.data
     group = Group.objects.create(
         name=data['name'],
-        description=data['description', ''],
+        description=data.get('description', ''),
         created_by=request.user 
     )
     group.members.add(request.user)
@@ -292,12 +307,13 @@ def joinGroup(request, group_id):
     group.members.add(request.user)
     return Response({'message': f'You joined the group {group.name}'}, status=status.HTTP_200_OK)
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def leaveGroup(request, group_id):
     group = get_object_or_404(Group, id=group_id)
     group.members.remove(request.user)
-    return Response({'messgae': f'You left the group {group.name}'}, status=status.HTTP_200_OK)
+    return Response({'message': f'You left the group {group.name}'}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -307,10 +323,13 @@ def sendGroupMessage(request, group_id):
     if request.user not in group.members.all():
         return Response({'error': 'You are not a member of this group'}, status=status.HTTP_403_FORBIDDEN)
     data = request.data
+    content = data.get('content', '').strip()
+    if not content:
+        return Response({'error': 'Content is required'}, status=status.HTTP_400_BAD_REQUEST)
     message = GroupMessage.objects.create(
         group=group,
         sender=request.user,
-        content=data['content']
+        content=content
     )
     serializer = GroupMessageSerializer(message)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -328,6 +347,7 @@ def getGroupMessages(request, group_id):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def start_pomodoro_session(request):
     serializer = PomodoroTimerSerializer(data=request.data)
     if serializer.is_valid():
@@ -366,23 +386,27 @@ def delete_pomodoro_session(request, pk):
 class EducationContentPagination(PageNumberPagination):
     page_size = 10
 
+class EducationContentPagination(PageNumberPagination):
+    page_size = 10
+
+
 @api_view(['GET'])
 def get_educational_content(request):
     category = request.query_params.get('category', None)
     contents = EducationalContent.objects.all()
     if category:
-        contents = EducationalContent.objects.filter(category=category)
+        contents = contents.filter(category=category)
     paginator = EducationContentPagination()
     result_page = paginator.paginate_queryset(contents, request)
-    seializer = EducationalContentSerializer(result_page, many=True)
-    return paginator.get_paginated_response(seializer.data)
+    serializer = EducationalContentSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(['GET'])
 def view_educational_content(request, content_id):
     try:
         content = EducationalContent.objects.get(id=content_id)
-        content.increment_views()
+        content.increment_views()  # Предполагается, что этот метод существует
         serializer = EducationalContentSerializer(content)
         return Response(serializer.data)
     except EducationalContent.DoesNotExist:
@@ -405,7 +429,9 @@ def delete_educational_content(request, content_id):
     try:
         content = EducationalContent.objects.get(id=content_id)
         content.delete()
-        return Response({'message': 'Content deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        # Если статус 204, по спецификации тело ответа не должно присутствовать,
+        # но можно вернуть 200, если требуется сообщение.
+        return Response({'message': 'Content deleted successfully.'}, status=status.HTTP_200_OK)
     except EducationalContent.DoesNotExist:
         return Response({'error': 'Content not found.'}, status=status.HTTP_404_NOT_FOUND)
     
@@ -424,7 +450,6 @@ def update_educational_content(request, content_id):
         return Response({'error': 'Content not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
-
 @api_view(['GET'])
 def search_educational_content(request):
     query = request.query_params.get('query', None)
@@ -440,7 +465,7 @@ def search_educational_content(request):
 def get_calories(request):
     API_KEY = "1a1b7806964c5865d8bcb89cffbd73c8"  # Ваш ключ к API Nutritionix
     APP_ID = "faf1a44a"     # Ваш App ID от Nutritionix
-    endpoint = f"https://trackapi.nutritionix.com/v2/natural/nutrients"
+    endpoint = "https://trackapi.nutritionix.com/v2/natural/nutrients"
     
     headers = {
         'x-app-id': APP_ID,
@@ -451,29 +476,37 @@ def get_calories(request):
     product_name = request.data.get('product_name')
     weight = request.data.get('weight')
     if not product_name or not weight:
-        return Response({'error': 'Product name and weight are required.'}, status=400)
+        return Response({'error': 'Product name and weight are required.'}, status=status.HTTP_400_BAD_REQUEST)
+    
     body = {
         'query': f'{weight}g {product_name}',
         'timezone': 'Europe/Ukraine'
     }
-    response = request.post(endpoint, headers=headers, json=body)
+    # Используем библиотеку requests для внешнего запроса
+    response = requests.post(endpoint, headers=headers, json=body)
+    
     if response.status_code == 200:
         data = response.json()
+        # Проверка наличия данных
+        if not data.get('foods'):
+            return Response({'error': 'No food data returned.'}, status=status.HTTP_400_BAD_REQUEST)
         nutrients = data['foods'][0]
         result = {
-            'name': nutrients['product_name'],
-            'calories': nutrients['nf_calories'],
-            'protein': nutrients['nf_protein'],
-            'fat': nutrients['nf_fat'],
-            'carbs': nutrients['nf_carbs'],
+            'name': nutrients.get('product_name'),
+            'calories': nutrients.get('nf_calories'),
+            'protein': nutrients.get('nf_protein'),
+            'fat': nutrients.get('nf_fat'),
+            'carbs': nutrients.get('nf_carbs'),
         }
         
         serializer = ConsumedCaloriesSerializer(data=result)
         if serializer.is_valid():
             serializer.save(user=request.user)
-        return Response(serializer.data, status=201)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     else:
-        return Response({'error': 'Failed to fetch data from Nutritionx.'}, status=response.status_code)
+        return Response({'error': 'Failed to fetch data from Nutritionix.'}, status=response.status_code)
     
 
 
@@ -486,15 +519,24 @@ def get_calories_by_days(request, period):
     elif period == 'month':
         start_date = today - timedelta(days=30)
     else:
-        return Response({'error': 'Invalid period specified.'}, status=400)
+        return Response({'error': 'Invalid period specified.'}, status=status.HTTP_400_BAD_REQUEST)
     
     records = (
         ConsumedCalories.objects.filter(
             user=request.user,
-            created_at__date__gte=start_date).annotate(date=TruncDate('created_at')).values('data').annotate(total_calories=Sum('calories'),total_proteins=Sum('protein'), total_fat=Sum('fat'), total_carbs=Sum('carbs')).order_by('date')
-
+            consumed_at__date__gte=start_date  # Используем корректное имя поля (consumed_at)
+        )
+        .annotate(date=TruncDate('consumed_at'))
+        .values('date') 
+        .annotate(
+            total_calories=Sum('calories'),
+            total_proteins=Sum('protein'),
+            total_fat=Sum('fat'),
+            total_carbs=Sum('carbs')
+        )
+        .order_by('date')
     )
-    return Response(list(records), status=200)
+    return Response(list(records), status=status.HTTP_200_OK)
     
 
 
