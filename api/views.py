@@ -386,9 +386,6 @@ def delete_pomodoro_session(request, pk):
 class EducationContentPagination(PageNumberPagination):
     page_size = 10
 
-class EducationContentPagination(PageNumberPagination):
-    page_size = 10
-
 
 @api_view(['GET'])
 def get_educational_content(request):

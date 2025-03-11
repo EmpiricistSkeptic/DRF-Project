@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate
 class TaskSerializer(ModelSerializer):
     class Meta:
         model = Task
-        fields = '__all__'
+        fields = ['title', 'description', 'deadline', 'completed', 'difficulty', 'exp', 'updated', 'created']
 
 
 class UserRegistrationSerializer(ModelSerializer):
@@ -79,7 +79,7 @@ class GroupMessageSerializer(serializers.ModelSerializer):
 class PomodoroTimerSerializer(serializers.ModelSerializer):
     class Meta:
         model = PomodoroTimer
-        fields = ['id', 'user', 'start_timer', 'duration_minutes', 'short_break_minutes', 'long_break_minutes', 'is_completed']
+        fields = ['id', 'start_timer', 'duration_minutes', 'short_break_minutes', 'long_break_minutes', 'is_completed']
         read_only_fields = ['id', 'start_timer']
 
 
