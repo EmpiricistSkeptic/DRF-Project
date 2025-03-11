@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate
 class TaskSerializer(ModelSerializer):
     class Meta:
         model = Task
-        fields = ['title', 'description', 'deadline', 'completed', 'difficulty', 'exp', 'updated', 'created']
+        fields = ['id', 'title', 'description', 'deadline', 'completed', 'difficulty', 'exp', 'updated', 'created']
 
 
 class UserRegistrationSerializer(ModelSerializer):
