@@ -169,6 +169,16 @@ class UserAchievement(models.Model):
 
     
 
-    
+class UserNutritionGoal(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='nutrition_goal')
+    calories_goal = models.FloatField(default=2000)
+    protein_goal = models.FloatField(default=50)
+    fat_goal = models.FloatField(default=70)
+    carbs_goal = models.FloatField(default=260)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s Nutrition Goals"
 
 

@@ -3,8 +3,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer, GroupMessageSerializer, GroupSerializer, PomodoroTimerSerializer, EducationalContentSerializer, ConsumedCaloriesSerializer
-from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories
+from .serializers import TaskSerializer, UserRegistrationSerializer, ProfileSerializer, LoginSerializer, FriendshipSerializer, MessageSerializer, NotificationSerializer, GroupMessageSerializer, GroupSerializer, PomodoroTimerSerializer, EducationalContentSerializer, ConsumedCaloriesSerializer, UserNutritionGoalSerializer
+from .models import Task, Profile, Message, Friendship, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, UserNutritionGoal
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from rest_framework.pagination import PageNumberPagination
@@ -489,7 +489,7 @@ def get_calories(request):
             return Response({'error': 'No food data returned.'}, status=status.HTTP_400_BAD_REQUEST)
         nutrients = data['foods'][0]
         result = {
-            'name': nutrients.get('product_name'),
+            'product_name': nutrients.get('product_name'),
             'calories': nutrients.get('nf_calories'),
             'protein': nutrients.get('nf_protein'),
             'fat': nutrients.get('nf_fat'),
@@ -536,12 +536,62 @@ def get_calories_by_days(request, period):
     return Response(list(records), status=status.HTTP_200_OK)
     
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_nutrition_summary(request):
+    today = now().date()
+
+    daily_totals = ConsumedCalories.objects.filter(
+        user=request.user,
+        consumed_at__date=today
+    ).aggregate(
+        total_calories=Sum('calories') or 0,
+        total_proteins=Sum('protein') or 0,
+        total_fats=Sum('fat') or 0,
+        total_carbs=Sum('carbs') or 0
+    )
+    
+    try:
+        user_goals = UserNutritionGoal.objects.get(user=request.user)
+        goals = {
+            'calories_goal': user_goals.calories_goal,
+            'proteins_goal': user_goals.protein_goal,
+            'fats_goal': user_goals.fat_goal,
+            'carbs_goal': user_goals.carbs_goal
+        }
+    except UserNutritionGoal.DoesNotExist:
+        goals = {
+            'calories_goal': 2000,  
+            'proteins_goal': 50,
+            'fats_goal': 70,
+            'carbs_goal': 260
+        }
+    
+    # Get today's meals
+    today_meals = ConsumedCalories.objects.filter(
+        user=request.user,
+        consumed_at__date=today
+    )
+    meals_serializer = ConsumedCaloriesSerializer(today_meals, many=True)
+    
+    # Combine all data
+    response_data = {
+        **daily_totals,
+        **goals,
+        'meals': meals_serializer.data
+    }
+    
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
-
-
-
-
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_nutrition_goals(request):
+    serializer = UserNutritionGoalSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

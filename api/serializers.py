@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, Achievement, UserAchievement
+from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, Achievement, UserAchievement, UserNutritionGoal
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 
@@ -108,4 +108,18 @@ class UserAchievementSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAchievement
         fields = ['achievement', 'unlocked', 'unlocked_at']
+
+
+class UserNutritionGoalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserNutritionGoal
+        fields = ['calories_goal', 'protein_goal', 'fat_goal', 'carbs_goal']
+        
+    def create(self, validated_data):
+        user = self.context['request'].user
+        nutrition_goal, created = UserNutritionGoal.objects.update_or_create(
+            user=user,
+            defaults=validated_data
+        )
+        return nutrition_goal
         
