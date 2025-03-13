@@ -93,8 +93,8 @@ class EducationalContentSerializer(serializers.ModelSerializer):
 class ConsumedCaloriesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConsumedCalories
-        fields = ['id', 'user', 'product_name', 'calories', 'protein', 'fat', 'carbs', 'weight']
-        read_only_fields = ['id', 'user', 'calories', 'protein', 'fat', 'carbs']
+        fields = ['id', 'user', 'product_name', 'calories', 'proteins', 'fats', 'carbs', 'weight']
+        read_only_fields = ['id', 'user', 'calories', 'proteins', 'fats', 'carbs']
 
 
 
@@ -113,7 +113,7 @@ class UserAchievementSerializer(serializers.ModelSerializer):
 class UserNutritionGoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserNutritionGoal
-        fields = ['calories_goal', 'protein_goal', 'fat_goal', 'carbs_goal']
+        fields = ['calories_goal', 'proteins_goal', 'fats_goal', 'carbs_goal']
         
     def create(self, validated_data):
         user = self.context['request'].user

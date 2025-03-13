@@ -141,8 +141,8 @@ class ConsumedCalories(models.Model):
     product_name = models.CharField(max_length=200)
     weight = models.FloatField()
     calories = models.FloatField()
-    protein = models.FloatField()
-    fat = models.FloatField()
+    proteins = models.FloatField()
+    fats = models.FloatField()
     carbs = models.FloatField()
     consumed_at = models.DateTimeField(auto_now_add=True)
 
@@ -172,8 +172,8 @@ class UserAchievement(models.Model):
 class UserNutritionGoal(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='nutrition_goal')
     calories_goal = models.FloatField(default=2000)
-    protein_goal = models.FloatField(default=50)
-    fat_goal = models.FloatField(default=70)
+    proteins_goal = models.FloatField(default=50)
+    fats_goal = models.FloatField(default=70)
     carbs_goal = models.FloatField(default=260)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

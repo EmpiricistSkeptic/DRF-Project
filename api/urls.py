@@ -48,6 +48,7 @@ urlpatterns = [
     path('calories-by-days/<str:period>/', views.get_calories_by_days, name='get_calories_by_days'),
     path('nutrition-summary/', views.get_nutrition_summary, name='nutrition-summary'),
     path('update-nutrition-goals/', views.update_nutrition_goals, name='update-nutrition-goals'),
+    path('consumed-calories/<int:id>/', views.delete_consumed_calories, name='delete_consumed_calories'),
     
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

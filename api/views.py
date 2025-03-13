@@ -491,8 +491,8 @@ def get_calories(request):
         result = {
             'product_name': nutrients.get('product_name'),
             'calories': nutrients.get('nf_calories'),
-            'protein': nutrients.get('nf_protein'),
-            'fat': nutrients.get('nf_fat'),
+            'proteins': nutrients.get('nf_proteins'),
+            'fats': nutrients.get('nf_fats'),
             'carbs': nutrients.get('nf_carbs'),
         }
         
@@ -527,8 +527,8 @@ def get_calories_by_days(request, period):
         .values('date') 
         .annotate(
             total_calories=Sum('calories'),
-            total_proteins=Sum('protein'),
-            total_fat=Sum('fat'),
+            total_proteins=Sum('proteins'),
+            total_fat=Sum('fats'),
             total_carbs=Sum('carbs')
         )
         .order_by('date')
@@ -545,18 +545,23 @@ def get_nutrition_summary(request):
         user=request.user,
         consumed_at__date=today
     ).aggregate(
-        total_calories=Sum('calories') or 0,
-        total_proteins=Sum('protein') or 0,
-        total_fats=Sum('fat') or 0,
-        total_carbs=Sum('carbs') or 0
+        total_calories=Sum('calories'),
+        total_proteins=Sum('proteins'),
+        total_fats=Sum('fats'),
+        total_carbs=Sum('carbs')
     )
+
+    # Заменяем None на 0 для всех полей
+    for key in daily_totals:
+        if daily_totals[key] is None:
+            daily_totals[key] = 0
     
     try:
         user_goals = UserNutritionGoal.objects.get(user=request.user)
         goals = {
             'calories_goal': user_goals.calories_goal,
-            'proteins_goal': user_goals.protein_goal,
-            'fats_goal': user_goals.fat_goal,
+            'proteins_goal': user_goals.proteins_goal,
+            'fats_goal': user_goals.fats_goal,
             'carbs_goal': user_goals.carbs_goal
         }
     except UserNutritionGoal.DoesNotExist:
@@ -571,20 +576,27 @@ def get_nutrition_summary(request):
     today_meals = ConsumedCalories.objects.filter(
         user=request.user,
         consumed_at__date=today
-    )
+    ).order_by('-consumed_at')  # Сортировка по времени (сначала новые)
+    
     meals_serializer = ConsumedCaloriesSerializer(today_meals, many=True)
     
     # Combine all data
     response_data = {
         **daily_totals,
         **goals,
-        'meals': meals_serializer.data
+        'meals': meals_serializer.data,
+        'remaining': {
+            'calories': goals['calories_goal'] - daily_totals['total_calories'],
+            'proteins': goals['proteins_goal'] - daily_totals['total_proteins'],
+            'fats': goals['fats_goal'] - daily_totals['total_fats'],
+            'carbs': goals['carbs_goal'] - daily_totals['total_carbs']
+        }
     }
     
     return Response(response_data, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
+@api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_nutrition_goals(request):
     serializer = UserNutritionGoalSerializer(data=request.data, context={'request': request})
@@ -593,6 +605,15 @@ def update_nutrition_goals(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_consumed_calories(request, id):
+    try:
+        meal = ConsumedCalories.objects.get(id=id, user=request.user)
+        meal.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except ConsumedCalories.DoesNotExist:
+        return Response({'error': 'Meal not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
 
