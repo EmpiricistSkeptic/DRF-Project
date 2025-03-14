@@ -470,40 +470,65 @@ def get_calories(request):
         'Content-Type': 'application/json',
     }
 
+    print("Request data:", request.data)
+
     product_name = request.data.get('product_name')
     weight = request.data.get('weight')
     if not product_name or not weight:
+        print("Error: Product name or weight is missing")
         return Response({'error': 'Product name and weight are required.'}, status=status.HTTP_400_BAD_REQUEST)
     
+    query = f'{product_name} {weight}g'
+    print("Query to Nutritionix:", query)
+
     body = {
-        'query': f'{weight}g {product_name}',
+        'query': query,
         'timezone': 'Europe/Ukraine'
     }
-    # Используем библиотеку requests для внешнего запроса
-    response = requests.post(endpoint, headers=headers, json=body)
     
-    if response.status_code == 200:
-        data = response.json()
-        # Проверка наличия данных
-        if not data.get('foods'):
-            return Response({'error': 'No food data returned.'}, status=status.HTTP_400_BAD_REQUEST)
-        nutrients = data['foods'][0]
-        result = {
-            'product_name': nutrients.get('product_name'),
-            'calories': nutrients.get('nf_calories'),
-            'proteins': nutrients.get('nf_proteins'),
-            'fats': nutrients.get('nf_fats'),
-            'carbs': nutrients.get('nf_carbs'),
-        }
-        
-        serializer = ConsumedCaloriesSerializer(data=result)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+    try:
+        print("Sending request to Nutritionix with body:", body)
+        response = requests.post(endpoint, headers=headers, json=body)
+        print("Response status:", response.status_code)
+        print("Response content:", response.content)
+    
+        if response.status_code == 200:
+            data = response.json()
+            print("Parsed JSON data:", data)
+            
+            # Проверка наличия данных
+            if not data.get('foods'):
+                print("Error: No food data returned in response")
+                return Response({'error': 'No food data returned.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            nutrients = data['foods'][0]
+            print("Extracted nutrients:", nutrients)
+            
+            result = {
+                'product_name': nutrients.get('food_name'),  # Изменил с product_name на food_name
+                'calories': nutrients.get('nf_calories'),
+                'proteins': nutrients.get('nf_protein'),  # Изменил с nf_proteins на nf_protein
+                'fats': nutrients.get('nf_total_fat'),  # Изменил с nf_fats на nf_total_fat
+                'carbs': nutrients.get('nf_total_carbohydrate'),  # Изменил с nf_carbs на nf_total_carbohydrate
+                'weight': weight
+            }
+            print("Result to be serialized:", result)
+            
+            serializer = ConsumedCaloriesSerializer(data=result)
+            if serializer.is_valid():
+                print("Serializer is valid")
+                serializer.save(user=request.user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                print("Serializer errors:", serializer.errors)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    else:
-        return Response({'error': 'Failed to fetch data from Nutritionix.'}, status=response.status_code)
+            print("Error response from API:", response.text)
+            return Response({'error': f'Failed to fetch data from Nutritionix. Status code: {response.status_code}'}, 
+                          status=response.status_code)
+    except Exception as e:
+        print("Exception during API request:", str(e))
+        return Response({'error': f'API request failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
 
