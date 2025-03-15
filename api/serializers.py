@@ -94,7 +94,8 @@ class ConsumedCaloriesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConsumedCalories
         fields = ['id', 'user', 'product_name', 'calories', 'proteins', 'fats', 'carbs', 'weight']
-        read_only_fields = ['id', 'user', 'calories', 'proteins', 'fats', 'carbs']
+        read_only_fields = ['id', 'user']
+
 
 
 
