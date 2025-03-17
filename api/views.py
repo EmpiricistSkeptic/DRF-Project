@@ -108,7 +108,18 @@ def completeTask(request, pk):
         return Response({"error": "Task not found or not owned by the user"}, status=status.HTTP_404_NOT_FOUND)
     
     task.completed = True  
-    task.save()  
+    task.save()
+
+    profile = request.user.profile
+    profile.exp += task.exp
+
+    xp_threshhold = 1000 * (1.5 ** (profile.level - 1))
+    while profile.exp >= xp_threshhold:
+        profile.level += 1
+        profile.exp -= xp_threshhold
+        xp_threshhold = int(1000 * (1.5 ** (profile.level - 1)))
+
+    profile.save()
     
     serializer = TaskSerializer(task)
     return Response(serializer.data, status=status.HTTP_200_OK)

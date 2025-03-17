@@ -37,10 +37,16 @@ class LoginSerializer(serializers.Serializer):
 class ProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
+    points = serializers.IntegerField(source='exp', read_only=True)
+    total_points = serializers.SerializerMethodField()
+
+    def get_total_points(self, obj):
+        return int(100 * (1.5 ** (obj.level - 1)))
+
     
     class Meta:
         model = Profile
-        fields = ['username', 'email', 'bio', 'avatar', 'exp', 'level']
+        fields = ['username', 'email', 'bio', 'avatar', 'points', 'total_points', 'level']
 
 
 class FriendshipSerializer(serializers.ModelSerializer):
