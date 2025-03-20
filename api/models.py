@@ -23,7 +23,7 @@ class Task(models.Model):
     deadline = models.DateTimeField(default=default_deadline)
     completed = models.BooleanField(default=False)
     difficulty = models.CharField(max_length=1, choices=DIFFICULTY_CHOICES, default='E')
-    exp = models.PositiveIntegerField(default=0)
+    points = models.IntegerField(default=0)
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
 
@@ -41,7 +41,7 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     bio = models.TextField(blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    exp = models.IntegerField(default=0)
+    points = models.IntegerField(default=0)
     level = models.IntegerField(default=1)
 
     def __str__(self):

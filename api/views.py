@@ -111,12 +111,12 @@ def completeTask(request, pk):
     task.save()
 
     profile = request.user.profile
-    profile.exp += task.exp
+    profile.points += task.points
 
     xp_threshhold = 1000 * (1.5 ** (profile.level - 1))
-    while profile.exp >= xp_threshhold:
+    while profile.points >= xp_threshhold:
         profile.level += 1
-        profile.exp -= xp_threshhold
+        profile.points -= xp_threshhold
         xp_threshhold = int(1000 * (1.5 ** (profile.level - 1)))
 
     profile.save()

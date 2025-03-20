@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate
 class TaskSerializer(ModelSerializer):
     class Meta:
         model = Task
-        fields = ['id', 'title', 'description', 'deadline', 'completed', 'difficulty', 'exp', 'updated', 'created']
+        fields = ['id', 'title', 'description', 'deadline', 'completed', 'difficulty', 'points', 'updated', 'created']
 
 
 class UserRegistrationSerializer(ModelSerializer):
@@ -37,7 +37,7 @@ class LoginSerializer(serializers.Serializer):
 class ProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username')
     email = serializers.EmailField(source='user.email', read_only=True)
-    points = serializers.IntegerField(source='exp', read_only=True)
+    points = serializers.IntegerField(read_only=True)
     total_points = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
 
