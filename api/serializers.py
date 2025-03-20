@@ -35,18 +35,36 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
+    username = serializers.CharField(source='user.username')
     email = serializers.EmailField(source='user.email', read_only=True)
     points = serializers.IntegerField(source='exp', read_only=True)
     total_points = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
 
     def get_total_points(self, obj):
-        return int(100 * (1.5 ** (obj.level - 1)))
+        return int(1000 * (1.5 ** (obj.level - 1)))
+    
+    def get_avatar_url(self, obj):
+        if obj.avatar and hasattr(obj.avatar, 'url'):
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
+    
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', {})
+        if 'username' in user_data:
+            user = instance.user
+            user.username = user_data.get('username', user.username)
+            user.save()
+        return super().update(instance, validated_data)
+
 
     
     class Meta:
         model = Profile
-        fields = ['username', 'email', 'bio', 'avatar', 'points', 'total_points', 'level']
+        fields = ['username', 'email', 'bio', 'avatar', 'avatar_url', 'points', 'total_points', 'level']
 
 
 class FriendshipSerializer(serializers.ModelSerializer):

@@ -184,6 +184,10 @@ def userProfile(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
+        if request.data.get('username'):
+            request.user.username = request.data.get('username')
+            request.user.save()
+
         serializer = ProfileSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
