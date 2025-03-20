@@ -59,23 +59,17 @@ class ProfileSerializer(serializers.ModelSerializer):
             user.username = user_data.get('username', user.username)
             user.save()
     
-        # Обработка аватара
-        avatar = self.context['request'].FILES.get('avatar')
-        if avatar:
-            if instance.avatar:
-                instance.avatar.delete()
-            instance.avatar = avatar
 
         instance.bio = validated_data.get('bio', instance.bio)
         instance.save()
     
-        return super().update(instance, validated_data)
+        return instance
 
 
     
     class Meta:
         model = Profile
-        fields = ['username', 'email', 'bio', 'avatar', 'avatar_url', 'points', 'total_points', 'level']
+        fields = ['username', 'email', 'bio', 'avatar_url', 'points', 'total_points', 'level']
 
 
 class FriendshipSerializer(serializers.ModelSerializer):

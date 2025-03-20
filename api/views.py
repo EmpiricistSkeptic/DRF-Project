@@ -184,19 +184,34 @@ def userProfile(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
-
-        if request.data.get('avatar_clear') == 'true':
-            if profile.avatar:
-                profile.avatar.delete(save=True)
-
-        if request.data.get('username'):
-            request.user.username = request.data.get('username')
+        # Create a copy of the data
+        data = request.data.copy()
+        
+        # Handle username separately
+        if 'username' in data:
+            request.user.username = data.get('username')
             request.user.save()
-
-        serializer = ProfileSerializer(profile, data=request.data, partial=True, context={'request': request})
+        
+        # Handle avatar separately
+        if data.get('avatar_clear') == 'true':
+            if profile.avatar:
+                profile.avatar.delete(save=False)
+                profile.avatar = None
+        elif 'avatar' in request.FILES:
+            # If a new avatar is uploaded, replace the old one
+            if profile.avatar:
+                profile.avatar.delete(save=False)
+            profile.avatar = request.FILES['avatar']
+        
+        # Now handle the rest with the serializer
+        serializer = ProfileSerializer(profile, data=data, partial=True, context={'request': request})
+        
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Re-fetch the serializer to get the updated data including the avatar_url
+            updated_serializer = ProfileSerializer(profile, context={'request': request})
+            return Response(updated_serializer.data, status=status.HTTP_200_OK)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
