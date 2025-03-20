@@ -184,11 +184,16 @@ def userProfile(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
+
+        if request.data.get('avatar_clear') == 'true':
+            if profile.avatar:
+                profile.avatar.delete(save=True)
+
         if request.data.get('username'):
             request.user.username = request.data.get('username')
             request.user.save()
 
-        serializer = ProfileSerializer(profile, data=request.data, partial=True)
+        serializer = ProfileSerializer(profile, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
