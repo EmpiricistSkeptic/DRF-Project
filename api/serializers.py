@@ -49,7 +49,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.avatar.url)
-            return obj.avatar.url
+        # If no request in context, create a full URL manually
+            return f"https://drf-project-6vzx.onrender.com{obj.avatar.url}"
         return None
     
     def update(self, instance, validated_data):
