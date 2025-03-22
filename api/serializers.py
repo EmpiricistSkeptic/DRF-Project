@@ -49,8 +49,14 @@ class ProfileSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.avatar.url)
-        # If no request in context, create a full URL manually
-            return f"https://drf-project-6vzx.onrender.com{obj.avatar.url}"
+        # Если request отсутствует, создаем URL вручную
+            base_url = "https://drf-project-6vzx.onrender.com"
+        # Удаляем дублирующийся слеш, если avatar.url начинается с /
+            avatar_url = obj.avatar.url
+            if avatar_url.startswith('/'):
+                return f"{base_url}{avatar_url}"
+            else:
+                return f"{base_url}/{avatar_url}"
         return None
     
     def update(self, instance, validated_data):

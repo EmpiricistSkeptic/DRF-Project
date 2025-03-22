@@ -180,7 +180,10 @@ def userProfile(request):
         return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = ProfileSerializer(profile)
+        serializer = ProfileSerializer(profile, context={'request': request})
+        if profile.avatar:
+            print(f"Avatar physical path: {profile.avatar.path}")
+            print(f"Avatar URL path: {profile.avatar.url}")
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
