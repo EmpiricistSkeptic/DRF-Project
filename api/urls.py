@@ -16,6 +16,7 @@ urlpatterns = [
     path('tasks/<int:pk>/', views.getTask, name='get_task'),
     path('tasks/<int:pk>/update/', views.updateTask, name='update_task'),
     path('tasks/<int:pk>/delete/', views.deleteTask, name='delete_task'),
+    path('tasks/completed/', views.getCompletedTasks, name='completed-tasks'),
     
     path('send_friend_request/<int:user_id>/', views.send_friend_request, name='send_friend_request'),
     path('accept_friend_request/<int:user_id>/', views.accept_friend_request, name='accept_friend_request'),

@@ -136,6 +136,13 @@ def deleteTask(request, pk):
     except Task.DoesNotExist:
         return Response({"error": "Task not found or not owned by the user"}, status=status.HTTP_404_NOT_FOUND)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getCompletedTasks(request):
+    tasks = Task.objects.filter(user=request.user, completed=True)
+    serializer = TaskSerializer(tasks, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 @api_view(['POST'])
 def registerAccount(request):
