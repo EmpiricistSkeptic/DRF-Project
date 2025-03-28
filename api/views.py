@@ -1,4 +1,5 @@
 # Стандартная библиотека
+import os
 import logging
 from datetime import timedelta
 from django.utils.timezone import now
@@ -810,11 +811,15 @@ def delete_consumed_calories(request, id):
 
 
 
-# --- Конфигурация (Лучше вынести в settings.py или .env) ---
-# Замените на реальный URL вашего ИИ-сервиса (OpenAI, Claude, etc.)
-AI_API_ENDPOINT = 'https://api.deepseek.com/v1'
-# Замените на ваш реальный API-ключ (НИКОГДА не храните его прямо в коде)
-AI_API_KEY = ''
+
+AI_API_ENDPOINT = os.environ.get('AI_API_ENDPOINT')
+AI_API_KEY = os.environ.get('AI_API_KEY')
+
+if not AI_API_ENDPOINT:
+    logger.critical("Переменная окружения AI_API_ENDPOINT не установлена!")
+
+if not AI_API_KEY:
+    logger.critical("Переменная окружения AI_API_KEY не установлена!")
 # -------------------------------------------------------------
 
 # Улучшенные шаблоны с персоной "Системы" и тематикой Solo Leveling
