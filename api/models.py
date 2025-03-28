@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from datetime import datetime
 from datetime import timedelta
 from django.utils.timezone import now
+from django.utils import timezone
 
 DIFFICULTY_CHOICES = [
     ('S', 'S'),
@@ -35,6 +36,40 @@ class Task(models.Model):
     
     class Meta:
         ordering = ['-updated']
+
+
+class Quest(models.Model):
+    QUEST_TYPES = (
+        ('DAILY', 'Ежедневный'),
+        ('URGENT', 'Срочный'),
+        ('MAIN', 'Основной'),
+        ('CHALLENGE', 'Челлендж'),
+    )
+    QUEST_STATUS = (
+        ('ACTIVE', 'Активен'),    
+        ('COMPLETED', 'Выполнен'),   
+        ('FAILED', 'Провален'),       
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quests')
+    title = models.CharField(max_length=255, verbose_name="Название квеста")
+    description = models.TextField(verbose_name="Описание/Цели")
+    quest_type = models.CharField(max_length=20, choices=QUEST_TYPES, default='CHALLENGE', verbose_name="Тип квеста")
+    status = models.CharField(max_length=20, choices=QUEST_STATUS, default='ACTIVE', verbose_name="Статус")
+    reward_points = models.IntegerField(default=0, verbose_name="Награда XP")
+    reward_other = models.CharField(max_length=255, blank=True, null=True, verbose_name="Другая награда (текст)")
+    penalty_info = models.CharField(max_length=255, blank=True, null=True, verbose_name="Штраф (текст)")
+    generated_at = models.DateTimeField(default=timezone.now, verbose_name="Время генерации")
+    expires_at = models.DateTimeField(blank=True, null=True, verbose_name="Срок выполнения (для срочных)")
+    completed_at = models.DateTimeField(blank=True, null=True, verbose_name="Время выполнения")
+
+    class Meta:
+        verbose_name = "Квест (от ИИ)"
+        verbose_name_plural = "Квесты (от ИИ)"
+        ordering = ['-generated_at']
+
+    def __str__(self):
+        return f"[{self.get_quest_type_display()}] {self.title} ({self.user.username})"
 
 
 class Profile(models.Model):
@@ -180,5 +215,55 @@ class UserNutritionGoal(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s Nutrition Goals"
+
+
+class ChatHistory(models.Model):
+    """
+    Модель для хранения истории общения пользователя с ИИ-ассистентом.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE, 
+        related_name='chat_history',
+        verbose_name="Пользователь (Игрок)"
+    )
+    user_message = models.TextField(
+        verbose_name="Сообщение пользователя"
+    )
+    ai_response = models.TextField(
+        verbose_name="Ответ ИИ (Системы)"
+    )
+    prompt_sent = models.TextField(
+        verbose_name="Промпт, отправленный ИИ",
+        blank=True, 
+        null=True
+    )
+    scenario = models.CharField(
+        max_length=50,
+        verbose_name="Определенный сценарий",
+        blank=True, # Может быть пустым при ошибке определения
+        null=True
+    )
+    timestamp = models.DateTimeField(
+        default=timezone.now, # Автоматически устанавливаем время создания записи
+        verbose_name="Время обмена"
+    )
+    error_occurred = models.BooleanField(
+        default=False,
+        verbose_name="Произошла ошибка"
+    )
+    error_message = models.TextField(
+        verbose_name="Сообщение об ошибке",
+        blank=True,
+        null=True
+    )
+
+    class Meta:
+        verbose_name = "Запись истории чата"
+        verbose_name_plural = "История чата"
+        ordering = ['-timestamp'] 
+
+    def __str__(self):
+        return f"[{self.timestamp.strftime('%Y-%m-%d %H:%M')}] {self.user.username}: {self.user_message[:50]}..."
 
 

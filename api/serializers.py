@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, Achievement, UserAchievement, UserNutritionGoal
+from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, Achievement, UserAchievement, UserNutritionGoal, Quest
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 
@@ -159,4 +159,18 @@ class UserNutritionGoalSerializer(serializers.ModelSerializer):
             defaults=validated_data
         )
         return nutrition_goal
+
+    
+class QuestSerializer(serializers.ModelSerializer):
+    quest_type_display = serializers.CharField(source='get_quest_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = Quest
+        fields = [
+            'id', 'title', 'description', 'quest_type', 'quest_type_display',
+            'status', 'status_display', 'reward_points', 'reward_other',
+            'penalty_info', 'generated_at', 'expires_at', 'completed_at'
+        ]
+        read_only_fields = ['generated_at', 'completed_at']
         

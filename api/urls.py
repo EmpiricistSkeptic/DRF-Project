@@ -17,6 +17,9 @@ urlpatterns = [
     path('tasks/<int:pk>/update/', views.updateTask, name='update_task'),
     path('tasks/<int:pk>/delete/', views.deleteTask, name='delete_task'),
     path('tasks/completed/', views.getCompletedTasks, name='completed-tasks'),
+
+    path('quests/', views.quest_list_view, name='quests'),
+    path('quests/complete/<int:id>/', views.quest_complete_view, name='quest_complete'),
     
     path('send_friend_request/<int:user_id>/', views.send_friend_request, name='send_friend_request'),
     path('accept_friend_request/<int:user_id>/', views.accept_friend_request, name='accept_friend_request'),
@@ -53,4 +56,6 @@ urlpatterns = [
     
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    path('assistant/', views.AssistantAPIView.as_view(), name='assistant'),
 ]
