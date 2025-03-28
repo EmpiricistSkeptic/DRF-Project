@@ -1247,6 +1247,25 @@ class AssistantAPIView(APIView):
             return None
 
 
+    
+    def _save_chat_history(self, user, user_msg, ai_resp, prompt_msg=None, scenario_str=None, error_flag=False, err_msg=None):
+        """Сохраняет запись об обмене в ChatHistory."""
+        try:
+            ChatHistory.objects.create(
+                user=user,
+                user_message=user_msg,
+                ai_response=ai_resp,
+                prompt_sent=prompt_msg,
+                scenario=scenario_str,
+                error_occurred=error_flag,
+                error_message=str(err_msg) if err_msg else None,
+            )
+            logger.debug(f"Запись чата сохранена для пользователя {user.id}")
+        except Exception as e:
+            logger.error(f"Критическая ошибка: не удалось сохранить запись чата для {user.id}: {e}", exc_info=True)
+
+
+
     def post(self, request, *args, **kwargs):
         """
         Обрабатывает POST-запрос с сообщением пользователя к ИИ и сохраняет историю.
@@ -1378,8 +1397,8 @@ class AssistantAPIView(APIView):
                 user=user,
                 user_msg=user_message,
                 ai_resp=final_response_to_user,
-                prompt_msg=prompt_to_save, # Может быть None, если ошибка до его формирования
-                scenario_str=scenario, # Может быть None
+                prompt_msg=prompt_to_save, 
+                scenario_str=scenario, 
                 error_flag=error_occurred_flag,
                 err_msg=error_message_text
             )
