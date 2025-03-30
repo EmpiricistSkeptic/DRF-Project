@@ -58,5 +58,5 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     path('assistant/', views.AssistantAPIView.as_view(), name='assistant'),
-    path('api/chat/history/', views.get_chat_history, name='chat_history_api'),
+    path('chat/history/', views.get_chat_history, name='chat_history_api'),
 ]
