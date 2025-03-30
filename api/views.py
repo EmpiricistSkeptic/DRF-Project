@@ -1569,3 +1569,48 @@ class AssistantAPIView(APIView):
             )
 
             return Response({'response': final_response_to_user}, status=status_code)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_chat_history(request):
+    user = request.user
+
+    history_records = ChatHistory.objects.filter(user=user).order_by('timestamp')
+
+    messages_for_frontend = []
+
+    if not history_records.exists():
+        messages_for_frontend.append({
+            'id': 'initial-system-message-backend',
+            'text': '[Система] История диалога пуста. Начните разговор.',
+            'sender': 'ai', 
+            'timestamp': timezone.now().isoformat(),
+        })
+    else:
+        for record in history_records:
+            messages_for_frontend.append({
+                'id': f'hist-{record.pk}-user', 
+                'text': record.user_message,
+                'sender': 'user',
+                'timestamp': record.timestamp.isoformat() 
+            }) 
+
+            if record.error_occurred and record.error_message:
+                 messages_for_frontend.append({
+                    'id': f'hist-{record.pk}-error', 
+                    'text': f'[Система] Ошибка: {record.error_message}',
+                    'sender': 'ai', 
+                    'timestamp': record.timestamp.isoformat()
+                })
+            elif record.ai_response:
+                messages_for_frontend.append({
+                    'id': f'hist-{record.pk}-ai',
+                    'text': record.ai_response,
+                    'sender': 'ai',
+                    'timestamp': record.timestamp.isoformat()
+                })
+
+    return Response(messages_for_frontend, status=status.HTTP_200_OK)
+
