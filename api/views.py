@@ -209,10 +209,8 @@ def quest_complete_view(request, id):
 
             if reward_points > 0:
                 profile.points += reward_points
-                if hasattr(profile, 'total_points'): # Обновляем total_points, если поле существует
-                     profile.total_points += reward_points
 
-                logger.info(f"Игроку {profile.username} начислено {reward_points} Points за квест '{quest_to_complete.title}'. Текущие очки: {profile.points}")
+                logger.info(f"Игроку {user.username} начислено {reward_points} Points за квест '{quest_to_complete.title}'. Текущие очки: {profile.points}")
 
                 # --- Логика повышения уровня (скопирована из твоего примера) ---
                 xp_threshold = int(1000 * (1.5 ** (profile.level - 1)))
@@ -225,7 +223,7 @@ def quest_complete_view(request, id):
                     leveled_up = True
                     profile.points -= xp_threshold # Вычитаем порог текущего уровня
                     profile.level += 1             # Повышаем уровень
-                    logger.info(f"Игрок {profile.username} ДОСТИГ УРОВНЯ {profile.level}!")
+                    logger.info(f"Игрок {user.username} ДОСТИГ УРОВНЯ {profile.level}!")
                     # Пересчитываем порог для НОВОГО уровня
                     xp_threshold = int(1000 * (1.5 ** (profile.level - 1)))
                     if xp_threshold <= 0: # Защита и для новых уровней
@@ -236,16 +234,16 @@ def quest_complete_view(request, id):
                 profile.save() # Сохраняем профиль внутри транзакции
 
                 if leveled_up:
-                     logger.info(f"Игрок {profile.username} завершил квест '{quest_to_complete.title}'. Финальный статус: Уровень {profile.level}, Очки {profile.points}.")
+                     logger.info(f"Игрок {user.username} завершил квест '{quest_to_complete.title}'. Финальный статус: Уровень {profile.level}, Очки {profile.points}.")
                 else:
-                    logger.info(f"Игрок {profile.username} завершил квест '{quest_to_complete.title}', получено {reward_points} Points. Текущие очки: {profile.points}")
+                    logger.info(f"Игрок {user.username} завершил квест '{quest_to_complete.title}', получено {reward_points} Points. Текущие очки: {profile.points}")
 
             else:
                  logger.info(f"Игрок {user.username} завершил квест '{quest_to_complete.title}' без награды Points.")
 
         # Если транзакция завершилась успешно:
         # 4. Сериализуем и возвращаем обновленный квест
-        serializer = QuestSerializer(quest_to_complete)
+        serializer = QuestSerializer(quest_to_complete, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except Profile.DoesNotExist:
