@@ -27,13 +27,13 @@ from rest_framework.views import APIView
 from .models import ( 
     ChatHistory, ConsumedCalories, EducationalContent, Friendship, Group,
     GroupMessage, Message, Notification, PomodoroTimer, Profile, Quest, Task,
-    UserNutritionGoal
+    UserNutritionGoal, UserHabit
 )
 from .serializers import ( 
     ConsumedCaloriesSerializer, EducationalContentSerializer, FriendshipSerializer,
     GroupMessageSerializer, GroupSerializer, LoginSerializer, MessageSerializer,
     NotificationSerializer, PomodoroTimerSerializer, ProfileSerializer, QuestSerializer,
-    TaskSerializer, UserNutritionGoalSerializer, UserRegistrationSerializer
+    TaskSerializer, UserNutritionGoalSerializer, UserRegistrationSerializer, UserHabitSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -265,6 +265,137 @@ def quest_complete_view(request, id):
         )
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_quest_view(request, id):
+    user = request.user
+    try:
+        quest = Quest.objects.get(user=user, id=id)
+        serializer = QuestSerializer(quest)
+        logger.info(f"Quest {quest.id} has been found")
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Quest.DoesNotExist:
+        logger.info(f"Quest with id={id} not found or does not belong to user {user}")
+        return Response({"detail": "Quest not found or not owned by this user"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_habits_list(request):
+    user = request.user
+    habits = UserHabit.objects.filter(user=user, is_active=True)
+    serializer = UserHabitSerializer(habits, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_habit(request, id):
+    user = request.user
+    try:
+        habit = UserHabit.objects.get(user=user, id=id)
+        serilaizer = UserHabitSerializer(habit)
+        logger.info(f"Habits for {user} has been found")
+        return Response(serilaizer.data, status=status.HTTP_200_OK)
+    except UserHabit.DoesNotExist:
+        logger.info(f"No habits for {user} has been found")
+        return Response({"detail": "Habit not found or not owned by this user"}, status=status.HTTP_404_NOT_FOUND)
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_habit(request):
+    user = request.user
+    try:
+        serializer = UserHabitSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=user)
+            logger.info(f"Habit for {user} has been created")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        logger.error(f"Habit hasn't been created")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Something went wrong")
+        return Response({"detail": "an error occured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def update_habit(request, id):
+    user=request.user
+    if request.method == "PUT":
+        try:
+            habit = get_object_or_404(UserHabit, user=user, id=id)
+            serializer = UserHabitSerializer(habit, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                logger.info(f"Habit {id} has been updated")
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            logger.error(f"Something went wrong with request")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Some other error occuer")
+            return Response({"detail": "An error occured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'PATCH':
+        try:
+            habit = get_object_or_404(UserHabit, user=user, id=id)
+            serializer = UserHabitSerializer(habit, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                logger.info(f"Habit {id} has been updated")
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            logger.error(f"Something went wrong with request")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Some other error occured")
+            return Response({"detail": "an error occured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+@api_view(['PATCH']) 
+@permission_classes([IsAuthenticated])
+def delete_habit(request, id):
+    user = request.user
+    try:
+        habit = get_object_or_404(UserHabit, user=user, id=id)
+        habit.is_active = False
+        habit.save()
+        logger.info(f"Habit {id} for user {user} has been soft-deleted.")
+        return Response(status=status.HTTP_204_NO_CONTENT) 
+    except Exception as e:
+        logger.error(f"Failed to delete habit {id} for user {user}: {e}")
+        return Response({"detail": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def increment_streak(request, id):
+    user = request.user
+    try:
+        habit = get_object_or_404(UserHabit, user=user, id=id)
+
+        today = timezone.now().date()
+        if habit.last_tracked == today:
+            return Response(
+                {"detail": "You already marked today."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        habit.update_streak()
+        return Response(
+            {"detail": "Streak updated", "streak": habit.streak},
+            status=status.HTTP_200_OK
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to increment streak for habit {id}: {e}")
+        return Response(
+            {"detail": "Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+
 @api_view(['POST'])
 def registerAccount(request):
     serializer = UserRegistrationSerializer(data=request.data)
@@ -272,7 +403,6 @@ def registerAccount(request):
         user = serializer.save()
         return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 

@@ -20,6 +20,16 @@ urlpatterns = [
 
     path('quests/', views.quest_list_view, name='quests'),
     path('quests/complete/<int:id>/', views.quest_complete_view, name='quest_complete'),
+    path('quests/<int:id>/', views.get_quest_view, mame='get_quest'),
+
+   
+    path('habits/', views.get_habits_list, name='get_habits_list'),  # GET список привычек
+    path('habit/<int:id>/', views.get_habit, name='get_habit'),      # GET одна привычка
+    path('habit/', views.create_habit, name='create_habit'),         # POST новая привычка
+    path('habit/<int:id>/update/', views.update_habit, name='update_habit'),  # PUT/PATCH обновление
+    path('habit/<int:id>/delete/', views.delete_habit, name='delete_habit'),  # PATCH деактивация
+    path('habit/<int:id>/increment-streak/', views.increment_streak, name='increment_streak'),  # POST обновление стрика
+
     
     path('send_friend_request/<int:user_id>/', views.send_friend_request, name='send_friend_request'),
     path('accept_friend_request/<int:user_id>/', views.accept_friend_request, name='accept_friend_request'),

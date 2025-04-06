@@ -1,8 +1,9 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, Achievement, UserAchievement, UserNutritionGoal, Quest
+from .models import Task, Profile, Friendship, Message, Notification, Group, GroupMessage, PomodoroTimer, EducationalContent, ConsumedCalories, Achievement, UserAchievement, UserNutritionGoal, Quest, UserHabit
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.utils import timezone
 
 
 class TaskSerializer(ModelSerializer):
@@ -133,6 +134,20 @@ class ConsumedCaloriesSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'user']
 
 
+class UserNutritionGoalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserNutritionGoal
+        fields = ['calories_goal', 'proteins_goal', 'fats_goal', 'carbs_goal']
+        
+    def create(self, validated_data):
+        user = self.context['request'].user
+        nutrition_goal, created = UserNutritionGoal.objects.update_or_create(
+            user=user,
+            defaults=validated_data
+        )
+        return nutrition_goal
+
+
 
 
 class AchievementSerializer(serializers.ModelSerializer):
@@ -147,18 +162,7 @@ class UserAchievementSerializer(serializers.ModelSerializer):
         fields = ['achievement', 'unlocked', 'unlocked_at']
 
 
-class UserNutritionGoalSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserNutritionGoal
-        fields = ['calories_goal', 'proteins_goal', 'fats_goal', 'carbs_goal']
-        
-    def create(self, validated_data):
-        user = self.context['request'].user
-        nutrition_goal, created = UserNutritionGoal.objects.update_or_create(
-            user=user,
-            defaults=validated_data
-        )
-        return nutrition_goal
+
 
     
 class QuestSerializer(serializers.ModelSerializer):
@@ -174,3 +178,9 @@ class QuestSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['generated_at', 'completed_at']
         
+
+class UserHabitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserHabit
+        fields = ['id', 'title', 'description', 'streak', 'is_active', 'last_tracked', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'streak', 'is_active', 'last_tracked', 'created_at', 'updated_at']

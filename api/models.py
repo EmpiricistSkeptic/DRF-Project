@@ -185,6 +185,20 @@ class ConsumedCalories(models.Model):
         return f'{self.product_name} ({self.calories} kkal)'
     
 
+class UserNutritionGoal(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='nutrition_goal')
+    calories_goal = models.FloatField(default=2000)
+    proteins_goal = models.FloatField(default=50)
+    fats_goal = models.FloatField(default=70)
+    carbs_goal = models.FloatField(default=260)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s Nutrition Goals"
+
+
+
 class Achievement(models.Model):
     title = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -204,17 +218,6 @@ class UserAchievement(models.Model):
 
     
 
-class UserNutritionGoal(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='nutrition_goal')
-    calories_goal = models.FloatField(default=2000)
-    proteins_goal = models.FloatField(default=50)
-    fats_goal = models.FloatField(default=70)
-    carbs_goal = models.FloatField(default=260)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.user.username}'s Nutrition Goals"
 
 
 class ChatHistory(models.Model):
@@ -266,4 +269,30 @@ class ChatHistory(models.Model):
     def __str__(self):
         return f"[{self.timestamp.strftime('%Y-%m-%d %H:%M')}] {self.user.username}: {self.user_message[:50]}..."
 
+
+    
+
+class UserHabit(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=50)
+    description = models.TextField(blank=True, null=True)
+    streak = models.PositiveBigIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    last_tracked = models.DateField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def update_streak(self):
+        if timezone.now().date() == self.last_tracked + timedelta(days=1):
+            self.streak += 1
+        elif timezone.now().date() > self.last_tracked + timedelta(days=1):
+            self.streak = 1
+        self.last_tracked = timezone.now().date()
+        self.save()
+
+
+
+
+
+    
 
