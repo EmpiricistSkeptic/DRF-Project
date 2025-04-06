@@ -20,7 +20,7 @@ urlpatterns = [
 
     path('quests/', views.quest_list_view, name='quests'),
     path('quests/complete/<int:id>/', views.quest_complete_view, name='quest_complete'),
-    path('quests/<int:id>/', views.get_quest_view, mame='get_quest'),
+    path('quests/<int:id>/', views.get_quest_view, name='get_quest'),
 
    
     path('habits/', views.get_habits_list, name='get_habits_list'),  # GET список привычек
