@@ -180,7 +180,56 @@ class QuestSerializer(serializers.ModelSerializer):
         
 
 class UserHabitSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор для модели UserHabit.
+    Используется для создания, обновления (частичного) и получения привычек.
+    Поля streak и last_tracked обновляются через отдельный endpoint/логику.
+    """
+    # Можно добавить поле для отображения username, если нужно
+    # user_username = serializers.CharField(source='user.username', read_only=True) 
+    
     class Meta:
         model = UserHabit
-        fields = ['id', 'title', 'description', 'streak', 'is_active', 'last_tracked', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'streak', 'is_active', 'last_tracked', 'created_at', 'updated_at']
+        fields = [
+            'id', 
+            'title', 
+            'description', 
+            'icon', 
+            'frequency', # Добавлено поле
+            'notification_enabled', # Добавлено поле
+            'streak', # Отображаем, но не изменяем напрямую
+            'last_tracked', # Отображаем, но не изменяем напрямую
+            'is_active', # Позволяем изменять (для деактивации)
+            'created_at', 
+            'updated_at',
+            # 'user_username' # Если добавили выше
+            # 'user' # Обычно ID пользователя не возвращают или делают read_only
+        ]
+        
+        # Поля, которые НЕЛЬЗЯ изменять через стандартные POST/PATCH запросы
+        # Они либо устанавливаются автоматически, либо через специальную логику (track_habit)
+        read_only_fields = [
+            'id', 
+            'streak', 
+            'last_tracked', 
+            'created_at', 
+            'updated_at',
+            # 'user' # Если решите включить user ID, сделайте его read_only
+        ]
+        
+        # Дополнительные настройки для полей
+        extra_kwargs = {
+            'title': {
+                'required': True, 
+                'error_messages': { # Кастомные сообщения об ошибках
+                    'required': 'Пожалуйста, укажите название привычки.',
+                    'blank': 'Название привычки не может быть пустым.',
+                }
+            },
+            'description': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'icon': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'frequency': {'required': False}, # Можно сделать обязательным, если нужно
+            'notification_enabled': {'required': False},
+            'is_active': {'required': False},
+        }
+        

@@ -367,30 +367,56 @@ def delete_habit(request, id):
         return Response({"detail": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def increment_streak(request, id):
-    user = request.user
-    try:
-        habit = get_object_or_404(UserHabit, user=user, id=id)
+@api_view(['POST']) # Ожидаем только POST-запросы
+@permission_classes([IsAuthenticated]) # Только для аутентифицированных пользователей
+def track_user_habit(request, id): # Переименовал для ясности - "отметить привычку"
+    """
+    Отмечает привычку пользователя (UserHabit) с указанным ID как выполненную сегодня.
+    Обновляет стрик и дату последней отметки.
+    """
+    user = request.user # Получаем текущего пользователя из запроса
 
-        today = timezone.now().date()
-        if habit.last_tracked == today:
+    try:
+        habit = get_object_or_404(UserHabit, user=user, id=id, is_active=True) # Добавил is_active=True, чтобы нельзя было трекать неактивные
+
+        # --- Вызов метода модели для отметки привычки ---
+        tracked_successfully = habit.track_habit() # Метод вернет False, если уже отмечено сегодня
+
+        if tracked_successfully:
+            # Отметка прошла успешно
+            logger.info(f"User '{user.username}' successfully tracked habit '{habit.title}' (ID: {id}). Current streak: {habit.streak}")
             return Response(
-                {"detail": "You already marked today."},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "detail": "Habit tracked successfully!", 
+                    "streak": habit.streak, # Возвращаем обновленный стрик
+                    "last_tracked": habit.last_tracked # Возвращаем обновленную дату
+                },
+                status=status.HTTP_200_OK
+            )
+        else:
+            # Привычка уже была отмечена сегодня (метод track_habit вернул False)
+            logger.warning(f"User '{user.username}' tried to track already tracked habit '{habit.title}' (ID: {id}) today.")
+            return Response(
+                {
+                    "detail": "Habit has already been tracked today.",
+                    "streak": habit.streak, # Все равно возвращаем текущий стрик
+                    "last_tracked": habit.last_tracked 
+                },
+                status=status.HTTP_400_BAD_REQUEST # Используем 400 Bad Request для этого случая
             )
 
-        habit.update_streak()
-        return Response(
-            {"detail": "Streak updated", "streak": habit.streak},
-            status=status.HTTP_200_OK
-        )
+    except UserHabit.DoesNotExist:
+         # get_object_or_404 сам вернет 404, но можно добавить логирование
+         logger.warning(f"User '{user.username}' tried to track non-existent or inactive habit with ID: {id}")
+         # get_object_or_404 выбросит Http404, DRF поймает и вернет 404 Response
+         # Поэтому этот блок можно убрать, если не нужно специфическое логирование
+         return Response({"detail": "Habit not found or not active."}, status=status.HTTP_404_NOT_FOUND)
 
     except Exception as e:
-        logger.error(f"Failed to increment streak for habit {id}: {e}")
+        # Ловим другие возможные ошибки (например, проблемы с базой данных при сохранении)
+        logger.error(f"Failed to track habit (ID: {id}) for user '{user.username}'. Error: {e}", exc_info=True) # Добавил exc_info для трейсбека
         return Response(
-            {"detail": "Something went wrong"},
+            {"detail": "An unexpected error occurred while tracking the habit."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 

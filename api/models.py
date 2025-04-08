@@ -4,6 +4,9 @@ from datetime import datetime
 from datetime import timedelta
 from django.utils.timezone import now
 from django.utils import timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 DIFFICULTY_CHOICES = [
     ('S', 'S'),
@@ -271,24 +274,110 @@ class ChatHistory(models.Model):
 
 
     
-
 class UserHabit(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    title = models.CharField(max_length=50)
-    description = models.TextField(blank=True, null=True)
-    streak = models.PositiveBigIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-    last_tracked = models.DateField(auto_now=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    """Модель привычки пользователя."""
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE,
+        related_name='habits' # Добавлено для удобных обратных запросов user.habits.all()
+    )
+    title = models.CharField(
+        max_length=100, # Немного увеличил длину для гибкости
+        verbose_name="Название привычки" # Добавлено для админки и форм
+    )
+    description = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Описание"
+    )
+    streak = models.PositiveIntegerField(
+        default=0, 
+        verbose_name="Текущий стрик (дней)"
+    )
+    is_active = models.BooleanField(
+        default=True, 
+        verbose_name="Активна",
+        help_text="Отметьте, если привычка активна (используется для мягкого удаления)"
+    )
+    last_tracked = models.DateField(
+        null=True, 
+        blank=True, # Дата может отсутствовать, если привычка никогда не отмечалась
+        verbose_name="Дата последней отметки"
+    )
+    icon = models.CharField(
+        max_length=50, # Установлена адекватная длина
+        blank=True, 
+        null=True, 
+        default='list-ul',
+        verbose_name="Иконка"
+    )
+    frequency = models.CharField( # Добавил поле частоты, т.к. оно есть во фронтенде
+        max_length=20, 
+        default='Daily', 
+        choices=[('Daily', 'Ежедневно'), ('Weekly', 'Еженедельно'), ('Monthly', 'Ежемесячно')], # Пример выбора
+        verbose_name="Частота"
+    )
+    notification_enabled = models.BooleanField( # Добавил поле уведомлений
+        default=False, 
+        verbose_name="Уведомления включены"
+    )
+    
+    # Метаданные времени
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
 
-    def update_streak(self):
-        if timezone.now().date() == self.last_tracked + timedelta(days=1):
-            self.streak += 1
-        elif timezone.now().date() > self.last_tracked + timedelta(days=1):
+    class Meta:
+        verbose_name = "Привычка пользователя"
+        verbose_name_plural = "Привычки пользователей"
+        ordering = ['-created_at'] # Сортировка по умолчанию
+
+    def track_habit(self):
+        """
+        Отмечает привычку как выполненную СЕГОДНЯ.
+        Обновляет стрик и дату последней отметки.
+        Возвращает True, если отметка прошла успешно (т.е. не была уже отмечена сегодня).
+        Возвращает False, если привычка уже была отмечена сегодня.
+        """
+        today = timezone.now().date()
+
+        # --- Проверка: Не была ли уже отмечена сегодня? ---
+        # Эту проверку ЛУЧШЕ делать в View перед вызовом этого метода,
+        # но для надежности можно оставить и здесь.
+        if self.last_tracked == today:
+            logger.warning(f"Habit '{self.title}' (ID: {self.id}) already tracked today ({today}).")
+            return False # Сигнализируем, что действие не требуется
+
+        # --- Логика обновления стрика ---
+        if self.last_tracked: # Если привычка уже отмечалась ранее
+            if today == self.last_tracked + timedelta(days=1):
+                # Продолжаем стрик
+                self.streak += 1
+                logger.info(f"Habit '{self.title}' (ID: {self.id}) streak continued: {self.streak} days.")
+            elif today > self.last_tracked + timedelta(days=1):
+                # Был пропуск, сбрасываем стрик до 1
+                self.streak = 1
+                logger.info(f"Habit '{self.title}' (ID: {self.id}) streak reset to 1 after a gap.")
+            # else: today < self.last_tracked + timedelta(days=1) - это случай отметки в прошлом или дубль (обработан выше), стрик не меняем
+        else:
+            # Это самая первая отметка привычки
             self.streak = 1
-        self.last_tracked = timezone.now().date()
-        self.save()
+            logger.info(f"Habit '{self.title}' (ID: {self.id}) tracked for the first time. Streak: 1.")
+
+        # --- Обновление даты последней отметки ---
+        self.last_tracked = today
+        
+        # --- Сохранение ---
+        # Сохраняем только измененные поля для эффективности и чтобы не затереть `updated_at` без нужды
+        self.save(update_fields=['streak', 'last_tracked', 'updated_at']) 
+        
+        return True # Успешная отметка
+
+    def __str__(self):
+        return f"{self.title} ({self.user.get_username()})"
+    
+
+    
+
 
 
 

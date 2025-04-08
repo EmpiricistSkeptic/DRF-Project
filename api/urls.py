@@ -28,7 +28,7 @@ urlpatterns = [
     path('habit/', views.create_habit, name='create_habit'),         # POST новая привычка
     path('habit/<int:id>/update/', views.update_habit, name='update_habit'),  # PUT/PATCH обновление
     path('habit/<int:id>/delete/', views.delete_habit, name='delete_habit'),  # PATCH деактивация
-    path('habit/<int:id>/increment-streak/', views.increment_streak, name='increment_streak'),  # POST обновление стрика
+    path('habits/<int:id>/track/', views.track_user_habit, name='track-habit'),   # POST обновление стрика
 
     
     path('send_friend_request/<int:user_id>/', views.send_friend_request, name='send_friend_request'),
