@@ -163,3 +163,50 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False, # Важно, чтобы не отключить логи Django и DRF
+    'formatters': { # Формат вывода сообщений
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': { # Куда выводить логи
+        'console': {
+            'level': 'DEBUG', # Минимальный уровень сообщений для вывода в консоль (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            'class': 'logging.StreamHandler', # Вывод в stderr (консоль)
+            'formatter': 'simple', # Используем простой формат
+        },
+        # Можно добавить хендлер для записи в файл:
+        # 'file': {
+        #     'level': 'INFO',
+        #     'class': 'logging.FileHandler',
+        #     'filename': BASE_DIR / 'django_debug.log', # Путь к файлу логов
+        #     'formatter': 'verbose',
+        # },
+    },
+    'loggers': { # Конфигурация для конкретных логгеров
+        'django': { # Логи самого Django
+            'handlers': ['console'],
+            'level': 'INFO', # Не слишком многословный уровень для Django
+            'propagate': True,
+        },
+        'django.request': { # Логи обработки запросов Django
+            'handlers': ['console'],
+            'level': 'WARNING', # Показывать только предупреждения и ошибки запросов
+            'propagate': False,
+        },
+        'ваше_приложение': { # Логи вашего приложения (замените 'ваше_приложение' на реальное имя)
+            'handlers': ['console'], # Используем вывод в консоль
+            'level': 'DEBUG', # Показываем все сообщения от DEBUG и выше для нашего кода
+            'propagate': True, # Позволить сообщениям идти к 'root' логгеру (если он настроен)
+        },
+    }
+}
