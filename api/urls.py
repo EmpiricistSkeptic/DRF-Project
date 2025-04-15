@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
 urlpatterns = [
-    path('', views.getRoutes),
+    
     path('register/', views.registerAccount),
     path('login/', views.loginUser),
     path('logout/', views.logoutUser),
@@ -46,17 +46,6 @@ urlpatterns = [
     path('groups/<int:group_id>/messages/', views.getGroupMessages, name='get_group_messages'),
     path('groups/<int:group_id>/messages/send/', views.sendGroupMessage, name='send_group_message'),
     
-    path('pomodoro/start/', views.start_pomodoro_session, name='start_pomodoro_session'),
-    path('pomodoro/<int:pk>/update/', views.update_pomodoro_session, name='update_pomodoro_session'),
-    path('pomodoro/<int:pk>/delete/', views.delete_pomodoro_session, name='delete_pomodoro_session'),
-    path('pomodoro/', views.get_pomodoro_sessions, name='get_pomodoro_sessions'),
-    
-    path('educational-content/', views.get_educational_content, name='get_educational_content'),
-    path('educational-content/<int:content_id>/', views.view_educational_content, name='view_educational_content'),
-    path('educational-content/add/', views.add_educational_content, name='add_educational_content'),
-    path('educational-content/<int:content_id>/delete/', views.delete_educational_content, name='delete_educational_content'),
-    path('educational-content/<int:content_id>/update/', views.update_educational_content, name='update_educational_content'),
-    path('educational-content/search/', views.search_educational_content, name='search_educational_content'),
     
     path('get-calories/', views.get_calories, name='get_calories'),
     path('calories-by-days/<str:period>/', views.get_calories_by_days, name='get_calories_by_days'),

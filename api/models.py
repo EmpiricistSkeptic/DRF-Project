@@ -144,35 +144,7 @@ class GroupMessage(models.Model):
     def __str__(self):
         return f"Message in {self.group.name} by {self.sender.username}"
 
-
-class PomodoroTimer(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pomodoro_sessions')
-    start_timer = models.DateTimeField(auto_now_add=True)
-    duration_minutes = models.IntegerField(default=25)
-    short_break_minutes = models.IntegerField(default=5)
-    long_break_minutes = models.IntegerField(default=15)
-    is_completed = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"Pomodoro for {self.user.username} - {self.duration_minutes} minutes"
     
-
-
-class EducationalContent(models.Model):
-    CATEGORY_CHOICES = [
-        ('neuroscience', 'Neuroscience'),
-        ('philosophy', 'Philosophy'),
-        ('mindset', 'Mindset'),
-        ('productivity', 'Productivity'),
-    ]
-    title = models.CharField(max_length=200)
-    content = models.TextField()
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.title
-
 
 class ConsumedCalories(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

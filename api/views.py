@@ -25,56 +25,19 @@ from rest_framework.views import APIView
 
 # Локальные импорты приложения
 from .models import ( 
-    ChatHistory, ConsumedCalories, EducationalContent, Friendship, Group,
-    GroupMessage, Message, Notification, PomodoroTimer, Profile, Quest, Task,
+    ChatHistory, ConsumedCalories, Friendship, Group,
+    GroupMessage, Message, Notification, Profile, Quest, Task,
     UserNutritionGoal, UserHabit
 )
 from .serializers import ( 
-    ConsumedCaloriesSerializer, EducationalContentSerializer, FriendshipSerializer,
+    ConsumedCaloriesSerializer, FriendshipSerializer,
     GroupMessageSerializer, GroupSerializer, LoginSerializer, MessageSerializer,
-    NotificationSerializer, PomodoroTimerSerializer, ProfileSerializer, QuestSerializer,
+    NotificationSerializer,  ProfileSerializer, QuestSerializer,
     TaskSerializer, UserNutritionGoalSerializer, UserRegistrationSerializer, UserHabitSerializer
 )
 
 logger = logging.getLogger(__name__)
 
-
-
-@api_view(['GET'])
-def getRoutes(request):
-    routes = [
-        {
-            'Endpoint': '/tasks/',
-            'method': 'GET',
-            'body': None,
-            'description': 'Returns an array of tasks'
-        },
-        {
-            'Endpoint': '/tasks/id',
-            'method': 'GET',
-            'body': None,
-            'description': 'Returns a single task object'
-        },
-        {
-            'Endpoint': '/tasks/create/',
-            'method': 'POST',
-            'body': {'body': "The content of the task"},
-            'description': 'Creates a new task with data sent in POST request'
-        },
-        {
-            'Endpoint': '/tasks/id/update/',
-            'method': 'PUT',
-            'body': {'body': "Updated content of the task"},
-            'description': 'Updates an existing task with data sent in PUT request'
-        },
-        {
-            'Endpoint': '/tasks/id/delete/',
-            'method': 'DELETE',
-            'body': None,
-            'description': 'Deletes an existing task'
-        }
-    ]
-    return Response(routes)
 
 
 @api_view(['GET'])
@@ -667,116 +630,6 @@ def getGroupMessages(request, group_id):
     serializer = GroupMessageSerializer(messages, many=True)
     return Response(serializer.data)
 
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def start_pomodoro_session(request):
-    serializer = PomodoroTimerSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(user=request.user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_pomodoro_sessions(request):
-    sessions = PomodoroTimer.objects.filter(user=request.user)
-    serializer = PomodoroTimerSerializer(sessions, many=True)
-    return Response(serializer.data)
-
-
-@api_view(['PATCH'])
-@permission_classes([IsAuthenticated])
-def update_pomodoro_session(request, pk):
-    session = get_object_or_404(PomodoroTimer, pk=pk, user=request.user)
-    serializer = PomodoroTimerSerializer(session, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_pomodoro_session(request, pk):
-    session = get_object_or_404(PomodoroTimer, pk=pk, user=request.user)
-    serializer = PomodoroTimerSerializer(session)
-    session.delete()
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-class EducationContentPagination(PageNumberPagination):
-    page_size = 10
-
-
-@api_view(['GET'])
-def get_educational_content(request):
-    category = request.query_params.get('category', None)
-    contents = EducationalContent.objects.all()
-    if category:
-        contents = contents.filter(category=category)
-    paginator = EducationContentPagination()
-    result_page = paginator.paginate_queryset(contents, request)
-    serializer = EducationalContentSerializer(result_page, many=True)
-    return paginator.get_paginated_response(serializer.data)
-
-
-@api_view(['GET'])
-def view_educational_content(request, content_id):
-    try:
-        content = EducationalContent.objects.get(id=content_id)
-        content.increment_views()  # Предполагается, что этот метод существует
-        serializer = EducationalContentSerializer(content)
-        return Response(serializer.data)
-    except EducationalContent.DoesNotExist:
-        return Response({'error': 'Content not found'}, status=status.HTTP_404_NOT_FOUND)
-    
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def add_educational_content(request):
-    serializer = EducationalContentSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_educational_content(request, content_id):
-    try:
-        content = EducationalContent.objects.get(id=content_id)
-        content.delete()
-        # Если статус 204, по спецификации тело ответа не должно присутствовать,
-        # но можно вернуть 200, если требуется сообщение.
-        return Response({'message': 'Content deleted successfully.'}, status=status.HTTP_200_OK)
-    except EducationalContent.DoesNotExist:
-        return Response({'error': 'Content not found.'}, status=status.HTTP_404_NOT_FOUND)
-    
-
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def update_educational_content(request, content_id):
-    try:
-        content = EducationalContent.objects.get(id=content_id)
-        serializer = EducationalContentSerializer(content, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    except EducationalContent.DoesNotExist:
-        return Response({'error': 'Content not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view(['GET'])
-def search_educational_content(request):
-    query = request.query_params.get('query', None)
-    if query:
-        contents = EducationalContent.objects.filter(Q(title__icontains=query) | Q(content__icontains=query))
-        serializer = EducationalContentSerializer(contents, many=True)
-        return Response(serializer.data)
-    return Response({'error': 'Query parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
