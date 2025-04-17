@@ -1,12 +1,13 @@
 from django.urls import path, include
 from . import views
-from .viewsets import TaskViewSet
+from .viewsets import TaskViewSet, QuestViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
 
 router = DefaultRouter()
 router.register(r'api/tasks', TaskViewSet, basename='task')
+router.register(r'api/quests', QuestViewSet, basename='quest')
 
 
 urlpatterns = [
