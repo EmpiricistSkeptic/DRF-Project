@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.db import transaction
 
-from .models import Task, Quest, Profile
-from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer
+from .models import Task, Quest, Profile, UserHabit
+from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -292,6 +292,114 @@ class QuestViewSet(viewsets.ReadOnlyModelViewSet):
                 {"detail": "Не удалось завершить квест из-за внутренней ошибки."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class HabitViewSet(viewsets.ModelViewSet):
+
+    serializer_class = UserHabitSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        logger.debug(f"Запрос queryset привычек для пользователя: {user.username}")
+
+        queryset = UserHabit.objects.filter(user=user)
+        logger.info(f"Найден queryset из {queryset.count()} привычек для пользователя {user.username}")
+
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+
+        queryset = self.get_queryset().filter(is_active=True)
+        logger.info(f"Фильтрация списка привычек: показ только активных для {request.user.username}")
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            logger.debug(f"Возвращается пагинированный список активных привычек для {request.user.username}")
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        logger.debug(f"Возвращается полный список активных привычек для {request.user.username}")
+        return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        logger.info(f"Пользователь {request.user.username} запросил задачу id={instance.id}")
+        
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+    
+    def perform_create(self, serializer):
+
+        instance = serializer.save(user=self.request.user)
+        logger.info(
+            f"Пользователь {self.request.user.username} создал привычку id={instance.id}: '{instance.title[:30]}...'"
+        )
+
+    def perform_update(self, serializer):
+
+        instance = serializer.save()
+        logger.info(
+            f"Пользователь {self.request.user.username} обновил привычку id={instance.id}: '{instance.title[:30]}...'"
+        )
+
+    def perform_destroy(self, instance):
+
+        habit_id = instance.id
+        habit_title = instance.title
+        user = self.request.user # Получаем пользователя до удаления
+        instance.delete()
+        # Используем уровень WARNING для потенциально деструктивных операций
+        logger.warning(
+            f"Пользователь {user.username} УДАЛИЛ привычку id={habit_id}: '{habit_title[:30]}...'"
+        )
+
+    @action(detail=True, methods=['post'], url_path='track')
+    def track(self, request, pk=None):
+
+        habit = self.get_object()
+
+        try:
+            tracked = habit.track_habit()
+
+            if tracked:
+                logger.info(
+                    f"User '{request.user.username}' successfully tracked "
+                    f"habit '{habit.title}' (ID: {habit.id}). Current streak: {habit.streak}"
+                )
+                return Response(
+                    {
+                        "detail": "Habit tracked successfully!",
+                        "streak": habit.streak,
+                        "last_tracked": habit.last_tracked
+                    },
+                    status=status.HTTP_200_OK
+                )
+            else:
+                logger.warning(
+                    f"User '{request.user.username}' tried to track already tracked "
+                    f"habit '{habit.title}' (ID: {habit.id}) today."
+                )
+                return Response(
+                    {
+                        "detail": "Habit has already been tracked today.",
+                        "streak": habit.streak,
+                        "last_tracked": habit.last_tracked
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to track habit (ID: {habit.id}) for user '{request.user.username}'. Error: {e}",
+                exc_info=True
+            )
+            return Response(
+                {"detail": "An unexpected error occurred while tracking the habit."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 
             
 
