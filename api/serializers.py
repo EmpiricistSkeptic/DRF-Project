@@ -38,48 +38,59 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username')
+    # Read/write fields
+    username = serializers.CharField(source='user.username', required=False)
+    avatar = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    avatar_clear = serializers.BooleanField(write_only=True, required=False)
+
+    # Read-only fields
     email = serializers.EmailField(source='user.email', read_only=True)
     points = serializers.IntegerField(read_only=True)
     total_points = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
 
+
+    class Meta:
+        model = Profile
+        fields = ['username', 'email', 'bio', 'avatar', 'avatar_clear',
+            'avatar_url', 'points', 'total_points', 'level']
+        read_only_fields = ['email', 'points', 'total_points', 'avatar_url', 'level']
+    
     def get_total_points(self, obj):
+        # Exponential growth of total points by level
         return int(1000 * (1.5 ** (obj.level - 1)))
     
     def get_avatar_url(self, obj):
         if obj.avatar and hasattr(obj.avatar, 'url'):
             request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.avatar.url)
-        # Если request отсутствует, создаем URL вручную
-            base_url = "https://drf-project-6vzx.onrender.com"
-        # Удаляем дублирующийся слеш, если avatar.url начинается с /
-            avatar_url = obj.avatar.url
-            if avatar_url.startswith('/'):
-                return f"{base_url}{avatar_url}"
-            else:
-                return f"{base_url}/{avatar_url}"
+            url = obj.avatar.url
+            return request.build_absolute_uri(url) if request else url
         return None
     
     def update(self, instance, validated_data):
+        # Update nested user fields
         user_data = validated_data.pop('user', {})
         if 'username' in user_data:
-            user = instance.user
-            user.username = user_data.get('username', user.username)
-            user.save()
-    
+            instance.user.username = user_data['username']
+            instance.user.save()
 
-        instance.bio = validated_data.get('bio', instance.bio)
+        # Handle avatar clearing or updating
+        if validated_data.pop('avatar_clear', False):
+            if instance.avatar:
+                instance.avatar.delete(save=False)
+            instance.avatar = None
+        elif 'avatar' in validated_data:
+            # Replace existing avatar if new one provided
+            new_avatar = validated_data.pop('avatar')
+            if instance.avatar:
+                instance.avatar.delete(save=False)
+            instance.avatar = new_avatar
+
+        # Update remaining profile fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
         instance.save()
-    
         return instance
-
-
-    
-    class Meta:
-        model = Profile
-        fields = ['username', 'email', 'bio', 'avatar_url', 'points', 'total_points', 'level']
 
 
 class FriendshipSerializer(serializers.ModelSerializer):

@@ -1,13 +1,14 @@
 import logging 
 
-from rest_framework import viewsets, status
+from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 
-from .models import Task, Quest, Profile, UserHabit
-from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer
+from .models import Task, Quest, Profile, UserHabit, Friendship, Notification, User
+from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer, FriendshipSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -398,6 +399,184 @@ class HabitViewSet(viewsets.ModelViewSet):
                 {"detail": "An unexpected error occurred while tracking the habit."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class ProfileViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet
+):
+    serializer_class = ProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Profile.objects.filter(user=self.request.user)
+
+    def get_object(self):
+        return self.request.user.profile
+
+    def retrieve(self, request, *args, **kwargs):
+        logger.info(f"Пользователь {request.user.username} запросил свой профиль")
+        return super().retrieve(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        logger.info(
+            f"Профиль пользователя {self.request.user.username} обновлён: "
+            f"username={instance.user.username}, bio={instance.bio[:30]}..."
+        )
+
+
+
+class FriendshipViewSet(viewsets.ViewSet):
+    """
+    ViewSet для отправки, принятия и отклонения запросов в друзья.
+    Регистрируется в роутере как:
+        router.register(r'friendship', FriendshipViewSet, basename='friendship')
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = FriendshipSerializer
+
+    @action(detail=True, methods=['post'], url_path='send')
+    def send(self, request, pk=None):
+        """
+        POST /friendship/{pk}/send/
+        Отправить запрос в друзья пользователю с id=pk
+        """
+        user_id = int(pk)
+        if request.user.id == user_id:
+            return Response(
+                {"detail": "You can't send a friend request to yourself."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        recipient = get_object_or_404(User, id=user_id)
+
+        if Friendship.objects.filter(user=request.user, friend=recipient).exists() or \
+           Friendship.objects.filter(user=recipient, friend=request.user).exists():
+            return Response(
+                {"detail": "Friendship or request already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            with transaction.atomic():
+                friendship = Friendship.objects.create(
+                    user=request.user,
+                    friend=recipient,
+                    status='PENDING'
+                )
+                Notification.objects.create(
+                    user=recipient,
+                    notification_type='friend_request',
+                    message=f"{request.user.username} sent you a friend request."
+                )
+        except Exception as e:
+            logger.error(f"Error sending friend request from {request.user.id} to {user_id}: {e}", exc_info=True)
+            return Response(
+                {"detail": "An error occurred while sending the friend request."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        serializer = self.serializer_class(friendship)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        
+
+    @action(detail=True, methods=['post'], url_path='accept')
+    def accept(self, request, pk=None):
+        try:
+            sender_id = int(pk)
+        except (ValueError, TypeError):
+            return Response(
+                 {"detail": "Invalid user ID format."},
+                 status=status.HTTP_400_BAD_REQUEST
+             )
+
+        # Fetch the pending request outside the transaction first
+        friendship = get_object_or_404(
+            Friendship,
+            user__id=sender_id,
+            friend=request.user,
+            status='PENDING'
+        )
+
+        # Store the sender user object before deleting the friendship request
+        sender_user = friendship.user
+
+        try:
+            with transaction.atomic():
+                # Delete the pending request
+                friendship.delete()
+
+                # Create the established friendship record (assuming this is your model logic)
+                # If your logic involves updating the existing record or creating two records, adjust accordingly.
+                Friendship.objects.create(
+                    user=request.user,
+                    friend=sender_user, # Use the stored user object
+                    status='FRIEND'
+                )
+                Notification.objects.create(
+                    user=friendship.user,
+                    notification_type='friend_request_accepted',
+                    message=f"{request.user.username} accepted your friend request"
+                )
+
+        except Exception as e:
+            logger.error(f"Error accepting friend request id {friendship.id} by user {request.user.id}: {e}", exc_info=True)
+            return Response(
+                {"detail": "An error occurred while accepting the friend request."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {"detail": "Friend request accepted"},
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=['post'], url_path='reject')
+    def reject(self, request, pk=None):
+        try:
+            sender_id = int(pk)
+        except (ValueError, TypeError):
+             return Response(
+                 {"detail": "Invalid user ID format."},
+                 status=status.HTTP_400_BAD_REQUEST
+             )
+
+        friendship = get_object_or_404(
+            Friendship,
+            user__id=sender_id,
+            friend=request.user,
+            status='PENDING'
+        )
+
+        # Store the sender user object before deleting the friendship request
+        sender_user = friendship.user
+        friendship_id_for_log = friendship.id # Store ID for logging in case of error
+
+        try:
+            with transaction.atomic():
+                friendship.delete()
+
+                Notification.objects.create(
+                    user=sender_user, 
+                    notification_type='friend_request_rejected',
+                    message=f"{request.user.username} rejected your friend request."
+                )
+        except Exception as e:
+            logger.error(f"Error rejecting friend request id {friendship_id_for_log} by user {request.user.id}: {e}", exc_info=True)
+            return Response(
+                {"detail": "An error occurred while rejecting the friend request."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {"detail": "Friend request rejected"},
+            status=status.HTTP_200_OK
+        )
+
+
+
 
 
 

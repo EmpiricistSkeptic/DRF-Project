@@ -421,48 +421,35 @@ def logoutUser(request):
 
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
-def userProfile(request):
-    profile = getattr(request.user, 'profile', None)
-    if not profile:
-        return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+def user_profile(request):
+    """
+    Retrieve or update the authenticated user's profile.
+
+    GET: Return profile data.
+    PUT: Update profile including username, bio, and avatar.
+    """
+    try:
+        profile = request.user.profile
+    except Profile.DoesNotExist:
+        return Response({'error': 'Profile not found.'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
         serializer = ProfileSerializer(profile, context={'request': request})
-        if profile.avatar:
-            print(f"Avatar physical path: {profile.avatar.path}")
-            print(f"Avatar URL path: {profile.avatar.url}")
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data)
 
-    elif request.method == 'PUT':
-        # Create a copy of the data
-        data = request.data.copy()
-        
-        # Handle username separately
-        if 'username' in data:
-            request.user.username = data.get('username')
-            request.user.save()
-        
-        # Handle avatar separately
-        if data.get('avatar_clear') == 'true':
-            if profile.avatar:
-                profile.avatar.delete(save=False)
-                profile.avatar = None
-        elif 'avatar' in request.FILES:
-            # If a new avatar is uploaded, replace the old one
-            if profile.avatar:
-                profile.avatar.delete(save=False)
-            profile.avatar = request.FILES['avatar']
-        
-        # Now handle the rest with the serializer
-        serializer = ProfileSerializer(profile, data=data, partial=True, context={'request': request})
-        
-        if serializer.is_valid():
-            serializer.save()
-            # Re-fetch the serializer to get the updated data including the avatar_url
-            updated_serializer = ProfileSerializer(profile, context={'request': request})
-            return Response(updated_serializer.data, status=status.HTTP_200_OK)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # For PUT, use serializer to handle all updates
+    serializer = ProfileSerializer(
+        profile,
+        data=request.data,
+        partial=True,
+        context={'request': request}
+    )
+    if serializer.is_valid():
+        serializer.save()
+        # Return updated data
+        return Response(ProfileSerializer(profile, context={'request': request}).data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
@@ -547,7 +534,7 @@ def sendMessage(request):
 
 
 
-@api_view(['POST'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def getMessages(request):
     messages = Message.objects.filter(recipient=request.user)
