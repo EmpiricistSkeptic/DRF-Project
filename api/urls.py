@@ -1,6 +1,6 @@
 from django.urls import path, include
 from . import views
-from .viewsets import TaskViewSet, QuestViewSet, HabitViewSet, ProfileViewSet
+from .viewsets import TaskViewSet, QuestViewSet, HabitViewSet, ProfileViewSet, FriendshipViewSet, MessageViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
@@ -10,7 +10,8 @@ router.register(r'api/tasks', TaskViewSet, basename='task')
 router.register(r'api/quests', QuestViewSet, basename='quest')
 router.register(r'api/habits', HabitViewSet, basename='habit')
 router.register(r'api/profile', ProfileViewSet, basename='profile')
-router.register(r'friendship', FriendshipViewSet, basename='friendship')
+router.register(r'api/friendship', FriendshipViewSet, basename='friendship')
+router.register(r'api/messages', MessageViewSet, basename='message')
 
 
 urlpatterns = [

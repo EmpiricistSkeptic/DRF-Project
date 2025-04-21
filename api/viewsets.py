@@ -1,5 +1,22 @@
 import logging 
 
+from django.db.models import (
+    Q,
+    Case,
+    When,
+    F,
+    Max,
+    Subquery,
+    OuterRef,
+    ForeignKey,
+    Q,
+    Count,
+    DateField,
+    F,
+    Sum,
+    models
+)
+
 from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,8 +24,8 @@ from rest_framework.decorators import action
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
-from .models import Task, Quest, Profile, UserHabit, Friendship, Notification, User
-from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer, FriendshipSerializer
+from .models import Task, Quest, Profile, UserHabit, Friendship, Notification, User, Message
+from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer, FriendshipSerializer, MessageSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -574,6 +591,105 @@ class FriendshipViewSet(viewsets.ViewSet):
             {"detail": "Friend request rejected"},
             status=status.HTTP_200_OK
         )
+
+
+class MessageViewSet(viewsets.ModelViewSet):
+
+    queryset = Message.objects.select_related('sender', 'recipient').all()
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Message.objects.filter(
+        Q(sender=user) | Q(recipient=user)
+    ).select_related('sender', 'recipient').order_by('-timestamp')
+    
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            message = serializer.save(sender=self.request.user)
+            Notification.objects.create(
+                user=message.recipient,
+                notification_type='message',
+                message=f"You have a new message from {message.sender.username}."
+            )
+
+    @action(detail=False, methods=['get'])
+    def inbox(self, request):
+        qs = self.get_queryset().filter(recipient=request.user, is_read=False).order_by('-timestamp')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
+    
+
+    @action(detail=False, methods=['get'])
+    def outbox(self, request):
+        qs = self.get_queryset().filter(sender=request.user)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        msg = self.get_object()
+        if msg.recipient != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        msg.is_read = True
+        msg.save(update_fields=['is_read'])
+        return Response(self.get_serializer(msg).data)
+
+    @action(detail=False, methods=['get'])
+    def threads(self, request):
+        """
+        Список диалогов: для каждого собеседника — время и текст последнего сообщения.
+        """
+        user = request.user
+        # Аннотируем “other” пользователя и берём максимум по времени
+        threads = (
+            Message.objects
+            .filter(Q(sender=user) | Q(recipient=user))
+            .annotate(
+                other=Case(
+                    When(sender=user, then=F('recipient')),
+                    When(recipient=user, then=F('sender')),
+                    output_field=ForeignKey(User, on_delete=models.CASCADE)
+                )
+            )
+            .values('other')
+            .annotate(
+                last_timestamp=Max('timestamp'),
+                last_content=Subquery(
+                    Message.objects.filter(
+                        Q(sender=user, recipient=OuterRef('other')) |
+                        Q(sender=OuterRef('other'), recipient=user)
+                    ).order_by('-timestamp').values('content')[:1]
+                )
+            )
+            .order_by('-last_timestamp')
+        )
+        return Response(threads)
+    
+    @action(detail=False, methods=['get'])
+    def thread(self, request):
+        """
+        Конкретный диалог с user_id из ?with=<id>
+        """
+        other_id = request.query_params.get('with')
+        user = request.user
+        qs = Message.objects.filter(
+            Q(sender=user, recipient_id=other_id) |
+            Q(sender_id=other_id, recipient=user)
+        ).order_by('timestamp')
+        page = self.paginate_queryset(qs)
+        serializer = self.get_serializer(page or qs, many=True)
+        return page and self.get_paginated_response(serializer.data) or Response(serializer.data)
+
 
 
 

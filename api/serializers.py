@@ -6,6 +6,7 @@ from .models import (
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
 
 
 class TaskSerializer(ModelSerializer):
@@ -100,10 +101,33 @@ class FriendshipSerializer(serializers.ModelSerializer):
 
 
 class MessageSerializer(serializers.ModelSerializer):
+    recipient_id = serializers.IntegerField(write_only=True)
+
     class Meta:
         model = Message
-        fields = '__all__'
+        fields = ['id', 'sender', 'recipient', 'recipient_id', 'timestamp', 'is_read']
+        read_only_fields = ['id', 'sender', 'recipient', 'timestamp']
 
+    def validate_recipient_id(self, value):
+        if value == self.context['request'].user.id:
+            raise serializers.ValidationError("You cannot send a message to yourself")
+        get_object_or_404(User, id=value)
+        return value
+    
+    def validate_content(Self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Content cannot be empty.")
+        return value.strip()
+    
+    def create(self, validated_data):
+        recipient_id = validated_data.pop('recipient_id')
+        recipient = get_object_or_404(User, id=recipient_id)
+        return Message.objects.create(
+            sender=self.context['request'].user,
+            recipient=recipient,
+            **validated_data
+        )
+        
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
