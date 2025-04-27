@@ -1,8 +1,9 @@
 from django.urls import path, include
 from . import views
-from .viewsets import TaskViewSet, QuestViewSet, HabitViewSet, ProfileViewSet, FriendshipViewSet, MessageViewSet
+from .viewsets import TaskViewSet, QuestViewSet, HabitViewSet, ProfileViewSet, FriendshipViewSet, MessageViewSet, GroupViewSet, GroupMessageViewSet, NotificationViewSet, ConsumedCaloriesViewSet, UserNutritionGoalViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.routers import DefaultRouter
+from rest_framework_nested.routers import NestedSimpleRouter
 
 
 router = DefaultRouter()
@@ -12,6 +13,12 @@ router.register(r'api/habits', HabitViewSet, basename='habit')
 router.register(r'api/profile', ProfileViewSet, basename='profile')
 router.register(r'api/friendship', FriendshipViewSet, basename='friendship')
 router.register(r'api/messages', MessageViewSet, basename='message')
+router.register(r'api/groups', GroupViewSet, basename='group')
+groups_router = NestedSimpleRouter(router, r'api/groups', lookup='group')
+groups_router.register(r'api/messages', GroupMessageViewSet, basename='group-messages')
+router.register(r'api/notifications', NotificationViewSet, basename='notification')
+router.register(r'api/consumed-calories', ConsumedCaloriesViewSet, basename='consumed-calories')
+router.register(r'api/nutrition-goals', UserNutritionGoalViewSet, basename='nutrition-goals')
 
 
 urlpatterns = [

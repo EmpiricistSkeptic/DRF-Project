@@ -1,5 +1,8 @@
-import logging 
+import logging
+from datetime import timedelta
+from django.utils.timezone import now
 
+from django.db.models.functions import TruncDate
 from django.db.models import (
     Q,
     Case,
@@ -23,9 +26,11 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import PermissionDenied
 
-from .models import Task, Quest, Profile, UserHabit, Friendship, Notification, User, Message
-from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer, FriendshipSerializer, MessageSerializer
+from .models import Task, Quest, Profile, UserHabit, Friendship, Notification, User, Message, Group, GroupMessage, ConsumedCalories, UserNutritionGoal
+from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer, FriendshipSerializer, MessageSerializer, GroupMessageSerializer, GroupSerializer, NotificationSerializer, ConsumedCaloriesSerializer, UserNutritionGoalSerializer
+from .permissions import IsGroupHost
 
 logger = logging.getLogger(__name__)
 
@@ -689,6 +694,174 @@ class MessageViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(qs)
         serializer = self.get_serializer(page or qs, many=True)
         return page and self.get_paginated_response(serializer.data) or Response(serializer.data)
+
+
+class GroupViewSet(viewsets.ModelViewSet):
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated, IsGroupHost]
+
+    def get_queryset(self):
+        return Group.objects.filter(members=self.request.user)
+
+
+    def perform_create(self, serializer):
+        group = serializer.save(created_by=self.request.user)
+        group.members.add(self.request.user)
+
+
+    @action(detail=True, methods=['post'])
+    def join(self, request, pk=None):
+        group = self.get_object()
+        group.members.add(request.user)
+        return Response({'status': 'joined'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def leave(self, request, pk=None):
+        group = self.get_object()
+        group.members.remove(request.user)
+        return Response({'status': 'left'}, status=status.HTTP_200_OK)
+
+
+class GroupMessageViewSet(viewsets.ModelViewSet):
+    serializer_class = GroupMessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        group = get_object_or_404(Group, id=self.kwargs['group_id'])
+        if self.reqeust.user not in group.members.all():
+            raise PermissionDenied('You are not a member of this group')
+        return GroupMessage.objects.filter(group=group)
+
+    def perform_create(self, serializer):
+        group = get_object_or_404(Group, id=self.kwargs['group_id'])
+        if self.request.user not in group.members.all():
+            raise PermissionDenied('You are not a member of this group')
+        serializer.save(group=group, sender=self.request.user)
+
+
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
+
+    @action(detail=True, methods=['post'])
+    def mark_as_read(self, request, pk=None):
+        notif = self.get_object()
+        notif.is_read = True
+        notif.save(updated_fields=['is_read'])
+        return Response({'status': 'marked as read'}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'])
+    def mark_all_as_read(self, request):
+        qs = self.get_queryset().filter(is_read=False).count()
+        updated = qs.updated(is_read=True)
+        return Response({'marked_count'}, updated)
+
+    @action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        count = self.get_queryset().filter(is_read=False).count()
+        return Response({'unread_count'}, count)
+
+
+class ConsumedCaloriesViewSet(viewsets.ModelViewSet):
+    queryset = ConsumedCalories.objects.all()
+    serializer_class = ConsumedCaloriesSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_id = 'id'
+
+def get_queryset(self):
+    return ConsumedCalories.objects.filter(user=self.request.user)
+
+
+@action(detail=False, methods=['get'], url_path=r'by-days/(?P<period>week|month)')
+def by_days(self, request, period=None):
+    today = now().date()
+    if period == 'week':
+        start = today - timedelta(days=7)
+    else:
+        start = today - timedelta(days=30)
+
+    records = (
+        self.get_queryset()
+        .filter(consumed_at__date__gte=start)
+        .annotate(date=TruncDate('consumed_at'))
+        .values('date')
+        .annotate(
+            total_calories=Sum('calories'),
+            total_proteins=Sum('proteins'),
+            total_fats=Sum('fats'),
+            total_carbs=Sum('carbs')
+        )
+        .order_by('date')
+    )
+    return Response(records)
+
+@action(detail=False, methods=['get'], url_path='summary')
+def summary(self, request):
+    today = now().date()
+
+    daily = self.get_queryset().filter(consumed_at__date=today).aggregate(
+        total_calories=Sum('calories'),
+        total_proteins=Sum('proteins'),
+        total_fats=Sum('fats'),
+        total_carbs=Sum('carbs')
+    )
+    for k, v in daily.items():
+        daily[k] = v or 0
+
+    try:
+        goals_obj = UserNutritionGoal.objects.get(user=request.user)
+        goals = UserNutritionGoalSerializer(goals_obj).data
+    except UserNutritionGoal.DoesNotExist:
+        goals = {
+            'calories_goal': 1800,
+            'proteins_goal': 50,
+            'fats_goal': 70,
+            'carbs_goal': 300,
+        }
+    meals = self.get_queryset().filter(consumed_at__date=today).order_by('-consumed_at')
+    meals_data = ConsumedCaloriesSerializer(meals, many=True).data
+
+    response = {
+        **daily,
+        **goals,
+        'meals': meals_data,
+        'remaining': {
+            'calories': goals['calories_goal'] - daily['total_calories'],
+            'proteins': goals['proteins_goal'] - daily['total_proteins'],
+            'fats': goals['fats_goal'] - daily['total_fats'],
+            'carbs': goals['carbs_goal'] - daily['total_carbs']
+        }
+    }
+    return Response(response)
+
+
+class UserNutritionGoalViewSet(
+    viewsets.GenericViewSet,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin
+):
+    serializer_class = UserNutritionGoalSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        obj, created = UserNutritionGoal.objects.get_or_create(
+            user=self.request.user,
+            defaults={
+                'calories_goal': 2000,
+                'proteins_goal': 50,
+                'fats_goal': 70,
+                'carbs_goal': 260,
+            }
+        )
+        return obj  
+
+    def perform_update(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 
