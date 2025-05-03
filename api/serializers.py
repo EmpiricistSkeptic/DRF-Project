@@ -8,6 +8,16 @@ from django.contrib.auth import authenticate
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
+from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.mail import send_mail
+from django.urls import reverse
+from users.tokens import account_activation_token
+
+
 
 class TaskSerializer(ModelSerializer):
     class Meta:
@@ -16,14 +26,58 @@ class TaskSerializer(ModelSerializer):
 
 
 class UserRegistrationSerializer(ModelSerializer):
+    password = serializers.CharField(write_only=True)
+    password2 = serializers.CharField(write_only=True, label="Потдверждение пароля")
+    email = serializers.EmailField()
+
     class Meta:
         model = User
-        fields = ['username', 'password', 'email']
-        extra_kwargs = {'password':{'write_only': True}}
+        fields = ['username', 'email', 'password', 'password2']
+        extra_kwargs = {
+            'username': {'validators': []},
+        }
 
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exist():
+            raise serializers.ValidationError("Этот email уже зарегестрирован!")
+        return value.lower()
+    
+    def validate(self, value):
+        if attrs['password'] != attrs['password2']:
+            raise serializers.ValidationError({"password2": "Пароли не совпадают."})
+        validate_password(attrs['password'])
+        return attrs
+    
+    @transaction.atomic
     def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
-        return user
+        validated_data.pop('password2')
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+            is_active=False
+        )
+        refresh = RefreshToken.for_user(user)
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = account_activation_token.make_token(user)
+        activation_link = self.context['request'].build_absolute_url(
+            reverse('activate-account', kwargs={'uid64': uid, 'token': token})
+        )
+        send_mail(
+            subject="Подтвердите ваш аккаунт",
+            message="Перейдите по ссылке, чтобы подтвердить аккаунт: {activation_link}",
+            from_email="no-reply",
+            recipient_list=[user.email],
+        )
+
+        return {
+            'user': user,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+    
+      
 
 
 class LoginSerializer(serializers.Serializer):
@@ -31,11 +85,21 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        user = authenticate(username=data['username'], password=data['password'])
+        user = authenticate(username=data.get('username'), password=data.get('password'))
+
         if not user:
             raise serializers.ValidationError("Invalid username or password.")
-        data['user'] = user
-        return data
+        if not user.is_active:
+            raise serializers.ValidationError("Account has not been activated. Check your mail.")
+        
+        refresh = RefreshToken.for_user(user)
+        return {
+            'user_id': user.pk,
+            'username': user.username,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+    
 
 
 class ProfileSerializer(serializers.ModelSerializer):

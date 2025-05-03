@@ -19,3 +19,5 @@ def create_user_achievements(sender, instance, created, **kwargs):
     if created:
         for achievement in Achievement.objects.all():
             UserAchievement.objects.create(user=instance, achievement=achievement)
+
+

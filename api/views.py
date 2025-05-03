@@ -13,15 +13,20 @@ from django.db.models import Q, Count, DateField, F, Sum # Объединил и
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone # Объединил импорты timezone, now доступно как timezone.now()
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 
 import requests
-from rest_framework import status
+from rest_framework import status, generics, permissions
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
+from users.tokens import account_activation_token
+
 
 # Локальные импорты приложения
 from .models import ( 
@@ -385,24 +390,40 @@ def track_user_habit(request, id): # Переименовал для яснос�
 
 
 
-@api_view(['POST'])
-def registerAccount(request):
-    serializer = UserRegistrationSerializer(data=request.data)
-    if serializer.is_valid():
-        user = serializer.save()
-        return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class RegistrationAPIView(generics.GenericAPIView):
+    serializer_class = UserRegistrationSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.save()
+        return Response(data, status=status.HTTP_201_CREATED)
+    
+
+class ActivateAccountAPIView(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, uid64, token, *args, **kwargs):
+        try:
+            uid = force_str(urlsafe_base64_decode(uid64))
+            user = get_object_or_404(User, pk=uid)
+        except (TypeError, ValueError, OverflowError):
+            return Response({'detail': 'Неверная ссылка активации.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+        if account_activation_token.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({'detail': 'Аккаунт успешно активирован.'})
+        else:
+            return Response({'detail': 'Ссылка недействительна или истекла.'})
+        
+
+class LoginAPIView(TokenObtainPairView):
+    serializer_class = LoginSerializer
+    permission_classes = [permissions.AllowAny]
 
 
-
-@api_view(['POST'])
-def loginUser(request):
-    serializer = LoginSerializer(data=request.data)
-    if serializer.is_valid():
-        user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
-        return Response({"token": token.key, "message": "Login successful"}, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
