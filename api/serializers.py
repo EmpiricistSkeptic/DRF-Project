@@ -23,7 +23,7 @@ class TaskSerializer(ModelSerializer):
     class Meta:
         model = Task
         fields = ['id', 'title', 'description', 'deadline', 'completed', 'difficulty', 'points', 'updated', 'created']
-
+        read_only_fields = ['updated', 'created', ]
 
 class UserRegistrationSerializer(ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -322,3 +322,6 @@ class UserHabitSerializer(serializers.ModelSerializer):
             'is_active': {'required': False},
         }
         
+
+
+    
