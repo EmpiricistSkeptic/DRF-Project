@@ -406,7 +406,7 @@ class HabitViewSet(viewsets.ModelViewSet):
                 )
                 return Response(
                     {
-                        "detail": "Habit has already been tracked today.",
+                        "detail": "Habit has already been tracked today!",
                         "streak": habit.streak,
                         "last_tracked": habit.last_tracked
                     },

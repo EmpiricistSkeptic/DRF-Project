@@ -7,6 +7,5 @@ class IsGroupHost(BasePermission):
     if request.method in ['GET', 'POST', 'OPTIONS']:
       return True
     return obj.created_by == request.user
-from rest_framework.permissions import BasePermission
 
 

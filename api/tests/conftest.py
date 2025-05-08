@@ -1,6 +1,6 @@
 import pytest
 from rest_framework.test import APIClient
-from .factories import UserFactory, QuestFactory
+from .factories import UserFactory, QuestFactory, HabitFactory
 from api.models import Profile
 
 pytestmark = pytest.mark.django_db
@@ -36,10 +36,31 @@ def test_profile(user):
   return profile
   
 
-
 @pytest.fixture
 def another_profile(another_user):
-  return user.profile
+  profile_obj = another_user.profile
+  profile_obj.points = 150
+  profile_obj.level = 1
+  profile_obj.save()
+  return profile_obj
+
+@pytest.fixture
+def active_habit(user):
+  return HabitFactory(user=user, title='No sugar', is_active=True, streak=5)
+
+
+@pytest.fixture
+def inactive_habit(user):
+  return HabitFactory(user=user, title='Inactive', is_active=False)
+
+@pytest.fixture
+def habit_untracked(user):
+  return HabitFactory(user=user, title='Untracked', is_active=True, streak=0, last_treaked=None)
+
+
+@pytest.fixture
+def other_user_habit(another_user):
+  return HabitFactory(user=another_user, title='Yoga nidra 10 minutes', is_active=True, streak=3)
 
 @pytest.fixture
 def active_quest(user):

@@ -21,3 +21,6 @@ def create_user_achievements(sender, instance, created, **kwargs):
             UserAchievement.objects.create(user=instance, achievement=achievement)
 
 
+
+
+        

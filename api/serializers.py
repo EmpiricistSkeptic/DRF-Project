@@ -15,7 +15,7 @@ from django.utils.encoding import force_bytes
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.urls import reverse
-from users.tokens import account_activation_token
+from api.users.tokens import account_activation_token
 
 
 
@@ -26,6 +26,7 @@ class TaskSerializer(ModelSerializer):
         read_only_fields = ['updated', 'created', ]
 
 class UserRegistrationSerializer(ModelSerializer):
+    username = serializers.CharField()
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True, label="Потдверждение пароля")
     email = serializers.EmailField()
@@ -33,16 +34,14 @@ class UserRegistrationSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'email', 'password', 'password2']
-        extra_kwargs = {
-            'username': {'validators': []},
-        }
+
 
     def validate_email(self, value):
-        if User.objects.filter(email__iexact=value).exist():
+        if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("Этот email уже зарегестрирован!")
         return value.lower()
     
-    def validate(self, value):
+    def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password2": "Пароли не совпадают."})
         validate_password(attrs['password'])
@@ -61,12 +60,12 @@ class UserRegistrationSerializer(ModelSerializer):
 
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = account_activation_token.make_token(user)
-        activation_link = self.context['request'].build_absolute_url(
+        activation_link = self.context['request'].build_absolute_uri(
             reverse('activate-account', kwargs={'uid64': uid, 'token': token})
         )
         send_mail(
             subject="Подтвердите ваш аккаунт",
-            message="Перейдите по ссылке, чтобы подтвердить аккаунт: {activation_link}",
+            message=f"Перейдите по ссылке, чтобы подтвердить аккаунт: {activation_link}",
             from_email="no-reply",
             recipient_list=[user.email],
         )

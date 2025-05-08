@@ -39,12 +39,14 @@ class TestQuestViewSet:
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data['results'] == []
 
+
     def test_retrieve_own_quest(self, client, user, test_profile, active_quest):
         client.force_authenticate(user=user)
         url = reverse('quest-detail', kwargs={'pk': active_quest.pk})
         resp = client.get(url)
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data['id'] == active_quest.id
+
 
     def test_retrieve_other_user_quest_raises_404(self, client, user, test_profile, other_user_quest):
         client.force_authenticate(user=user)
@@ -59,6 +61,7 @@ class TestQuestViewSet:
         resp = client.get(url)
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
+
     def test_complete_active_quest_success(self, client, user, test_profile, active_quest):
         client.force_authenticate(user=user)
         url = reverse('quest-complete', kwargs={'pk': active_quest.pk})
@@ -72,6 +75,7 @@ class TestQuestViewSet:
         assert test_profile.points == init_pts + active_quest.reward_points
         assert test_profile.level == init_lvl
 
+
     def test_complete_already_completed_quest_fails(self, client, user, test_profile, completed_quest):
         client.force_authenticate(user=user)
         url = reverse('quest-complete', kwargs={'pk': completed_quest.pk})
@@ -80,11 +84,13 @@ class TestQuestViewSet:
         test_profile.refresh_from_db()
         assert test_profile.points == 100
 
+
     def test_complete_other_user_quest_fails(self, client, user, test_profile, other_user_quest):
         client.force_authenticate(user=user)
         url = reverse('quest-complete', kwargs={'pk': other_user_quest.pk})
         resp = client.patch(url)
         assert resp.status_code == status.HTTP_404_NOT_FOUND
+
 
     def test_complete_non_existent_quest_fails(self, client, user, test_profile):
         client.force_authenticate(user=user)
@@ -92,6 +98,7 @@ class TestQuestViewSet:
         url = reverse('quest-complete', kwargs={'pk': non_pk})
         resp = client.patch(url)
         assert resp.status_code == status.HTTP_404_NOT_FOUND
+
 
     def test_complete_quest_no_profile_fails(self, client, user, test_profile, active_quest):
         client.force_authenticate(user=user)
