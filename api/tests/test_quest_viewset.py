@@ -63,17 +63,22 @@ class TestQuestViewSet:
 
 
     def test_complete_active_quest_success(self, client, user, test_profile, active_quest):
+
         client.force_authenticate(user=user)
         url = reverse('quest-complete', kwargs={'pk': active_quest.pk})
-        init_pts = test_profile.points
-        init_lvl = test_profile.level
+        
+        initial_profile_points = test_profile.points
+        initial_profile_level = test_profile.level
+        quest_reward = active_quest.reward_points
+
         resp = client.patch(url)
+        
         assert resp.status_code == status.HTTP_200_OK
         active_quest.refresh_from_db()
         test_profile.refresh_from_db()
         assert active_quest.status == 'COMPLETED'
-        assert test_profile.points == init_pts + active_quest.reward_points
-        assert test_profile.level == init_lvl
+        assert test_profile.points == initial_profile_points + active_quest.reward_points
+        assert test_profile.level == initial_profile_level
 
 
     def test_complete_already_completed_quest_fails(self, client, user, test_profile, completed_quest):

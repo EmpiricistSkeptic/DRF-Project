@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta
+from django.utils import timezone
 from django.utils.timezone import now
 
 from django.db.models.functions import TruncDate

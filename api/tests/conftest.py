@@ -55,7 +55,7 @@ def inactive_habit(user):
 
 @pytest.fixture
 def habit_untracked(user):
-  return HabitFactory(user=user, title='Untracked', is_active=True, streak=0, last_treaked=None)
+  return HabitFactory(user=user, title='Untracked', is_active=True, streak=0, last_tracked=None)
 
 
 @pytest.fixture

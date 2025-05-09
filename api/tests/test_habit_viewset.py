@@ -106,8 +106,7 @@ class TestHabitViewSet:
         new_title = 'Fresh title'
         response = auth_client.patch(url, data={'title': new_title})
         assert response.status_code == status.HTTP_200_OK
-        assert active_habit.title == new_title
-
+    
         active_habit.refresh_from_db()
         assert active_habit.title == new_title
 
@@ -168,7 +167,7 @@ class TestHabitViewSet:
         for key in expected_keys:
             assert key in response.data, f"Ключ '{key}' отсутствует в ответе пагинации"
         
-        isinstance(response.data['results', list]), "Ключ 'results' должен содержать список"
+        assert isinstance(response.data['results'], list), "Ключ 'results' должен содержать список"
         
         if active_habit:
             response.data['count'] >= 1
@@ -216,7 +215,7 @@ class TestHabitViewSet:
         response = auth_client.post(url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         habit_untracked.refresh_from_db()
-        assert response.data['detail'] == "Habit has been already tracked today!"
+        assert response.data['detail'] == "Habit has already been tracked today!"
         assert response.data['streak'] == streak_after_first_track
         assert response.data['last_tracked'] == last_tracked_after_first_track
 
