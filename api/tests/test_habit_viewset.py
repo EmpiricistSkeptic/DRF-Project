@@ -95,6 +95,7 @@ class TestHabitViewSet:
         response = auth_client.post(url, data=payload)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+
     def test_update_habit_unauthenticated(self, client, user, active_habit):
         url = reverse('habit-detail', kwargs={'pk': active_habit.pk})
         response = client.patch(url, data={'title': 'Changed title'})

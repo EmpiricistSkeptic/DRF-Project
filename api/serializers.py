@@ -25,6 +25,7 @@ class TaskSerializer(ModelSerializer):
         fields = ['id', 'title', 'description', 'deadline', 'completed', 'difficulty', 'points', 'updated', 'created']
         read_only_fields = ['updated', 'created', ]
 
+
 class UserRegistrationSerializer(ModelSerializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
@@ -40,6 +41,7 @@ class UserRegistrationSerializer(ModelSerializer):
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("Этот email уже зарегестрирован!")
         return value.lower()
+    
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
@@ -77,8 +79,6 @@ class UserRegistrationSerializer(ModelSerializer):
         }
     
       
-
-
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
@@ -100,7 +100,6 @@ class LoginSerializer(serializers.Serializer):
         }
     
 
-
 class ProfileSerializer(serializers.ModelSerializer):
     # Read/write fields
     username = serializers.CharField(source='user.username', required=False)
@@ -116,7 +115,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ['username', 'email', 'bio', 'avatar', 'avatar_clear',
+        fields = ['id', 'username', 'email', 'bio', 'avatar', 'avatar_clear',
             'avatar_url', 'points', 'total_points', 'level']
         read_only_fields = ['email', 'points', 'total_points', 'avatar_url', 'level']
     

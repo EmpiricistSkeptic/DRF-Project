@@ -30,6 +30,9 @@ def another_user():
 @pytest.fixture
 def test_profile(user):
   profile = user.profile
+  username = user.username
+  avatar = None
+  bio = None
   profile.points = 100
   profile.level = 1
   profile.save()
