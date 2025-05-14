@@ -86,6 +86,7 @@ class TestHabitViewSet:
         assert obj.user == user
         assert UserHabit.objects.get(id=response.data['id'])
 
+
     def test_create_habit_authenticated_invalid_data(self, auth_client, user):
         payload = {
             'description': 'TestDesc',

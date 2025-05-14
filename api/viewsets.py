@@ -21,7 +21,7 @@ from django.db.models import (
 )
 
 
-from rest_framework import viewsets, mixins, status
+from rest_framework import viewsets, mixins, status, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -29,9 +29,10 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
-from .models import Task, Quest, Profile, UserHabit, Friendship, Notification, User, Message, Group, GroupMessage, ConsumedCalories, UserNutritionGoal
+from .models import Task, Quest, Profile, UserHabit, Friendship, Notification, User, Message, Group, GroupMessage, ConsumedCalories, UserNutritionGoal, Achievement, UserAchievement, Category, UnitType
 from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer, FriendshipSerializer, MessageSerializer, GroupMessageSerializer, GroupSerializer, NotificationSerializer, ConsumedCaloriesSerializer, UserNutritionGoalSerializer
 from .permissions import IsGroupHost
+from .services import AchievementService
 
 logger = logging.getLogger(__name__)
 
@@ -151,9 +152,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 task.save()
                 logger.info(f"Задача id={task.id} помечена как выполненная пользователем {request.user.username}")
 
-                # 2. Обновляем профиль пользователя
-                # Убедись, что у модели User есть связь с Profile (обычно OneToOneField)
-                # и доступ к ней через request.user.profile
+            
                 try:
                     profile = request.user.profile # или task.user.profile
                 except AttributeError:
@@ -1034,6 +1033,54 @@ class UserNutritionGoalViewSet(
         serializer.save(user=self.request.user)
 
 
+class AchievementViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet для просмотра шаблонов достижений
+    """
+    
+    queryset = Achievement.objects.all()
+    serializer_class = AchievementSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'description', 'category__name']
 
-            
+
+class UserAchievementViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = UserAchievementSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return UserAchievement.objects.filter(user=self.request.user)
+    
+
+    @action(detail=False, methods=['get'])
+    def progress(self):
+        """
+        Получение прогресса всех достижений пользователя в удобном формате
+        """
+        progress_data = AchievementService.get_achievement_progress(self.request.user)
+        return Response(progress_data)
+
+    
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet для просмотра категорий задач
+    """
+     
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated]
+
+
+class UnitTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet для просмотра типов единиц измерения
+    """
+    queryset = UnitType.objects.all()
+    serializer_class = UnitTypeSerializer
+    permission_classes = [IsAuthenticated]
+
+
+     
+
 

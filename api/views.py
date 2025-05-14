@@ -30,15 +30,12 @@ from api.users.tokens import account_activation_token
 
 # Локальные импорты приложения
 from .models import ( 
-    ChatHistory, ConsumedCalories, Friendship, Group,
-    GroupMessage, Message, Notification, Profile, Quest, Task,
-    UserNutritionGoal, UserHabit
+    ChatHistory, ConsumedCalories, Profile, Quest, Task,
+    UserNutritionGoal,
 )
 from .serializers import ( 
-    ConsumedCaloriesSerializer, FriendshipSerializer,
-    GroupMessageSerializer, GroupSerializer, LoginSerializer, MessageSerializer,
-    NotificationSerializer,  ProfileSerializer, QuestSerializer,
-    TaskSerializer, UserNutritionGoalSerializer, UserRegistrationSerializer, UserHabitSerializer
+    ConsumedCaloriesSerializer,  LoginSerializer,
+    UserNutritionGoalSerializer, UserRegistrationSerializer, 
 )
 
 logger = logging.getLogger(__name__)

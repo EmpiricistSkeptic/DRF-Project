@@ -1,7 +1,7 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 from .models import (
-    Task, Profile, Friendship, Message, Notification, Group, GroupMessage, ConsumedCalories, Achievement, UserAchievement, UserNutritionGoal, Quest, UserHabit
+    Task, Profile, Friendship, Message, Notification, Group, GroupMessage, ConsumedCalories, Achievement, UserAchievement, UserNutritionGoal, Quest, UserHabit, Achievement, UserAchievement, Category, UnitType
 )
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
@@ -18,11 +18,110 @@ from django.urls import reverse
 from api.users.tokens import account_activation_token
 
 
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = '__all__'
+
+
+class UnitTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UnitType
+        fields = '__all__'
+
+
+class AchievementSerializer(serializers.ModelSerializer):
+    category = CategorySerializer(read_only=True)
+    unit_type = UnitTypeSerializer(read_only=True)
+    
+    class Meta:
+        model = Achievement
+        fields = '__all__'
+
+
+class UserAchievementSerializer(serializers.ModelSerializer):
+    achievement = AchievementSerializer(read_only=True)
+    
+    # Добавляем вычисляемые поля для прогресса
+    next_tier = serializers.SerializerMethodField()
+    next_requirement = serializers.SerializerMethodField()
+    progress_percentage = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserAchievement
+        fields = [
+            'id', 'achievement', 'current_progress', 'current_tier',
+            'next_tier', 'next_requirement', 'progress_percentage',
+            'completed', 'completed_at'
+        ]
+    
+    def get_next_tier(self, obj):
+        """Получить следующий уровень достижения"""
+        if obj.current_tier == 'BRONZE':
+            return 'SILVER'
+        elif obj.current_tier == 'SILVER':
+            return 'GOLD'
+        elif obj.current_tier == 'GOLD':
+            return 'PLATINUM'
+        elif obj.current_tier == 'PLATINUM':
+            return 'DIAMOND'
+        return None
+    
+    def get_next_requirement(self, obj):
+        """Получить требование для следующего уровня"""
+        if obj.current_tier == 'BRONZE':
+            return obj.achievement.silver_requirement
+        elif obj.current_tier == 'SILVER':
+            return obj.achievement.gold_requirement
+        elif obj.current_tier == 'GOLD':
+            return obj.achievement.platinum_requirement
+        elif obj.current_tier == 'PLATINUM':
+            return obj.achievement.diamond_requirement
+        return None
+    
+    def get_progress_percentage(self, obj):
+        """Вычислить процент прогресса к следующему уровню"""
+        next_req = self.get_next_requirement(obj)
+        if not next_req:
+            return 100
+            
+        curr_tier_req = 0
+        if obj.current_tier == 'SILVER':
+            curr_tier_req = obj.achievement.bronze_requirement
+        elif obj.current_tier == 'GOLD':
+            curr_tier_req = obj.achievement.silver_requirement
+        elif obj.current_tier == 'PLATINUM':
+            curr_tier_req = obj.achievement.gold_requirement
+        elif obj.current_tier == 'DIAMOND':
+            curr_tier_req = obj.achievement.platinum_requirement
+            
+        progress_in_tier = obj.current_progress - curr_tier_req
+        tier_range = next_req - curr_tier_req
+        
+        return min(100, int((progress_in_tier / tier_range) * 100)) if tier_range > 0 else 100
+
 
 class TaskSerializer(ModelSerializer):
+    
+    category = CategorySerializer(read_only=True)
+    unit_type = UnitTypeSerializer(read_only=True)
+    
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        source='category',
+        write_only=True
+    )
+    
+    unit_type_id = serializers.PrimaryKeyRelatedField(
+        queryset=UnitType.objects.all(),
+        source='unit_type',
+        write_only=True,
+        required=False
+    )
+
     class Meta:
         model = Task
-        fields = ['id', 'title', 'description', 'deadline', 'completed', 'difficulty', 'points', 'updated', 'created']
+        fields = ['id', 'title', 'description', 'deadline', 'completed', 'difficulty', 'points', 'category', 'category_id', 'unit_type', 'unit_type_id', 'unit_amount', 'updated', 'created']
         read_only_fields = ['updated', 'created', ]
 
 
@@ -49,6 +148,7 @@ class UserRegistrationSerializer(ModelSerializer):
         validate_password(attrs['password'])
         return attrs
     
+
     @transaction.atomic
     def create(self, validated_data):
         validated_data.pop('password2')
@@ -99,6 +199,7 @@ class LoginSerializer(serializers.Serializer):
             'access': str(refresh.access_token),
         }
     
+
 
 class ProfileSerializer(serializers.ModelSerializer):
     # Read/write fields
@@ -213,7 +314,6 @@ class GroupMessageSerializer(serializers.ModelSerializer):
 
 
 
-
 class ConsumedCaloriesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConsumedCalories
@@ -235,23 +335,6 @@ class UserNutritionGoalSerializer(serializers.ModelSerializer):
         return nutrition_goal
 
 
-
-
-class AchievementSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Achievement
-        fields = ['id', 'title', 'description', 'icon']
-
-
-class UserAchievementSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserAchievement
-        fields = ['achievement', 'unlocked', 'unlocked_at']
-
-
-
-
-    
 class QuestSerializer(serializers.ModelSerializer):
     quest_type_display = serializers.CharField(source='get_quest_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -322,4 +405,3 @@ class UserHabitSerializer(serializers.ModelSerializer):
         
 
 
-    

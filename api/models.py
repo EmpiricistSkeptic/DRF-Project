@@ -17,6 +17,24 @@ DIFFICULTY_CHOICES = [
     ('E', 'E'),
 ]
 
+
+class Category(models.Model):
+    name = models.CharFielf(max_length=50)
+    description = models.TextField(blank=True)
+    icon = models.ImageField(upload_to='categories/', blank=True)
+    
+    def __str__(self):
+        return self.name
+
+
+class UnitType(models.Model):
+    name = models.CharField(max_length=50)  # час., мин., стр., сл., уд.
+    symbol = models.CharField(max_length=10)  
+    
+    def __str__(self):
+        return self.name
+
+
 def default_deadline():
     return now() + timedelta(hours=24)
 
@@ -28,8 +46,9 @@ class Task(models.Model):
     completed = models.BooleanField(default=False)
     difficulty = models.CharField(max_length=1, choices=DIFFICULTY_CHOICES, default='E')
     points = models.IntegerField(default=0)
-    updated = models.DateTimeField(auto_now=True)
-    created = models.DateTimeField(auto_now_add=True)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
+    unit_type = models.ForeignKey(UnitType, on_delete=models.SET_NULL, null=True)
+    unit_amount = models.IntegerField(default=0)
 
     def __str__(self):
         title_display = self.title[:50] if self.title and self.title.strip() else 'Без названия'
@@ -135,6 +154,7 @@ class Group(models.Model):
     def __str__(self):
         return self.name
     
+
 class GroupMessage(models.Model):
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -175,24 +195,64 @@ class UserNutritionGoal(models.Model):
 
 
 class Achievement(models.Model):
-    title = models.CharField(max_length=100)
+    TIER_CHOICES = [
+        ('BRONZE', 'Bronze'),
+        ('SILVER', 'Silver'),
+        ('GOLD', 'Gold'),
+        ('PLATINUM', 'Platinium'),
+        ('DIAMOND', 'Diamond'),
+    ]
+
+
+    name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    icon = models.CharField(max_length=50)  
+    icon = models.CharField(upload_to='achievements/')
+    category = models.ForeignKey('Category', on_delete=models.CASCADE)
+    unit_type = models.ForeignKey('UnitType', on_delete=models.CASCADE)
+
+    bronze_requirement = models.IntegerField(default=10)
+    silver_requirement = models.IntegerField(default=50)
+    gold_requirement = models.IntegerField(default=100)
+    platinum_requirement = models.IntegerField(default=500)
+    diamond_requirement = models.IntegerField(default=1000)
 
     def __str__(self):
         return self.title
     
+    
 class UserAchievement(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_achievements')
     achievement = models.ForeignKey(Achievement, on_delete=models.CASCADE)
-    unlocked = models.BooleanField(default=False)
-    unlocked_at = models.DateTimeField(blank=True, null=True)
+    current_progress = models.IntegerField(default=0)
+    current_tier = models.CharField(max_length=10, choices=Achievement.TIER_CHOICES, default='BRONZE')
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('user', 'achievement')
+
 
     def __str__(self):
-        return f"{self.user.username} - {self.achievement.title}"
+        return f"{self.user.username} - {self.achievement.name}"
 
     
+    def update_progeress(self, value):
+        self.current_progress += value
 
+        if self.current_progress >= self.achievement.diamond_requirement:
+            self.current_tier = 'DIAMOND'
+            if not self.completed:
+                self.completed = True
+                self.completed_at = timezone.now()
+        elif self.current_progress >= self.achievement.platinum_requirement:
+            self.current_tier = 'PLATINUM'
+        elif self.current_progress >= self.achievement.gold_requirement:
+            self.current_tier = 'GOLD'
+        elif self.current_progress >= self.achievement.silver_requirement:
+            self.current_tier = 'SILVER'
+        else:
+            self.current_tier = 'BRONZE'
+        self.save()
 
 
 class ChatHistory(models.Model):
