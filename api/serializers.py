@@ -122,7 +122,7 @@ class TaskSerializer(ModelSerializer):
     class Meta:
         model = Task
         fields = ['id', 'title', 'description', 'deadline', 'completed', 'difficulty', 'points', 'category', 'category_id', 'unit_type', 'unit_type_id', 'unit_amount', 'updated', 'created']
-        read_only_fields = ['updated', 'created', ]
+        read_only_fields = ['updated', 'created']
 
 
 class UserRegistrationSerializer(ModelSerializer):

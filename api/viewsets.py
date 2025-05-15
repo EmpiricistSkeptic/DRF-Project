@@ -19,6 +19,8 @@ from django.db.models import (
     F,
     Sum,
 )
+from django.db import models
+
 
 
 from rest_framework import viewsets, mixins, status, filters
@@ -30,9 +32,9 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from .models import Task, Quest, Profile, UserHabit, Friendship, Notification, User, Message, Group, GroupMessage, ConsumedCalories, UserNutritionGoal, Achievement, UserAchievement, Category, UnitType
-from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer, FriendshipSerializer, MessageSerializer, GroupMessageSerializer, GroupSerializer, NotificationSerializer, ConsumedCaloriesSerializer, UserNutritionGoalSerializer
+from .serializers import TaskSerializer, QuestSerializer, ProfileSerializer, UserHabitSerializer, FriendshipSerializer, MessageSerializer, GroupMessageSerializer, GroupSerializer, NotificationSerializer, ConsumedCaloriesSerializer, UserNutritionGoalSerializer, UserAchievementSerializer, AchievementSerializer, UnitTypeSerializer, CategorySerializer
 from .permissions import IsGroupHost
-from .services import AchievementService
+from .services.achievement_service import AchievementService
 
 logger = logging.getLogger(__name__)
 

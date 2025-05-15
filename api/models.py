@@ -19,7 +19,7 @@ DIFFICULTY_CHOICES = [
 
 
 class Category(models.Model):
-    name = models.CharFielf(max_length=50)
+    name = models.CharField(max_length=50)
     description = models.TextField(blank=True)
     icon = models.ImageField(upload_to='categories/', blank=True)
     
@@ -49,15 +49,17 @@ class Task(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
     unit_type = models.ForeignKey(UnitType, on_delete=models.SET_NULL, null=True)
     unit_amount = models.IntegerField(default=0)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated']
+    
 
     def __str__(self):
         title_display = self.title[:50] if self.title and self.title.strip() else 'Без названия'
         description_display = self.description[:100] if self.description and self.description.strip() else 'Нет описания'
         return f"{title_display} - {description_display}"
 
-    
-    class Meta:
-        ordering = ['-updated']
 
 
 class Quest(models.Model):
@@ -206,9 +208,9 @@ class Achievement(models.Model):
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    icon = models.CharField(upload_to='achievements/')
-    category = models.ForeignKey('Category', on_delete=models.CASCADE)
-    unit_type = models.ForeignKey('UnitType', on_delete=models.CASCADE)
+    icon = models.ImageField(upload_to='achievements/')
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, default=1)
+    unit_type = models.ForeignKey('UnitType', on_delete=models.CASCADE, default=1)
 
     bronze_requirement = models.IntegerField(default=10)
     silver_requirement = models.IntegerField(default=50)
@@ -217,7 +219,7 @@ class Achievement(models.Model):
     diamond_requirement = models.IntegerField(default=1000)
 
     def __str__(self):
-        return self.title
+        return self.name
     
     
 class UserAchievement(models.Model):
@@ -236,7 +238,7 @@ class UserAchievement(models.Model):
         return f"{self.user.username} - {self.achievement.name}"
 
     
-    def update_progeress(self, value):
+    def update_progress(self, value):
         self.current_progress += value
 
         if self.current_progress >= self.achievement.diamond_requirement:
