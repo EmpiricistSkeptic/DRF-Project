@@ -51,12 +51,14 @@ class TestTaskViewSet:
     task.refresh_from_db()
     assert task.title == payload['title']
 
+
   def test_delete_own_task(self, auth_client):
     task = TaskFactory(user=auth_client.handler._force_user)
     url = reverse('task-detail', kwargs={'pk': task.pk})
     resp = auth_client.delete(url)
     assert resp.status_code == status.HTTP_204_NO_CONTENT
     assert not Task.objects.filter(id=task.pk).exists()
+
 
   def test_complete_task_success(self, auth_client):
     user = auth_client.handler._force_user
@@ -81,12 +83,14 @@ class TestTaskViewSet:
     assert task.completed is True
     assert profile.points == initial_points + task_points
 
+
   def test_complete_already_completed(self, auth_client):
     task = TaskFactory(user=auth_client.handler._force_user, completed=True)
     url = reverse('task-complete', kwargs={'pk': task.pk})
     resp = auth_client.put(url)
     assert resp.status_code == status.HTTP_400_BAD_REQUEST
     assert "Task is already completed" in resp.data['detail']
+
 
   def test_completed_list_returns_only_completed(self, auth_client):
     user = auth_client.handler._force_user

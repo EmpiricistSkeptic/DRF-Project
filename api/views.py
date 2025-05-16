@@ -1,14 +1,8 @@
 import os
 import logging
-from datetime import timedelta
-from django.utils.timezone import now
-from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db import transaction
-from django.db.models import Q, Count, DateField, F, Sum 
-from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.encoding import force_str
@@ -26,12 +20,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 
 from .models import ( 
-    ChatHistory, ConsumedCalories, Profile, Quest, Task,
-    UserNutritionGoal,
+    ChatHistory
 )
 from .serializers import ( 
     ConsumedCaloriesSerializer,  LoginSerializer,
-    UserNutritionGoalSerializer, UserRegistrationSerializer, 
+     UserRegistrationSerializer, 
 )
 
 logger = logging.getLogger(__name__)
@@ -129,7 +122,6 @@ def get_calories(request):
             data = response.json()
             print("Parsed JSON data:", data)
             
-            # Проверка наличия данных
             if not data.get('foods'):
                 print("Error: No food data returned in response")
                 return Response({'error': 'No food data returned.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -138,11 +130,11 @@ def get_calories(request):
             print("Extracted nutrients:", nutrients)
             
             result = {
-                'product_name': nutrients.get('food_name'),  # Изменил с product_name на food_name
+                'product_name': nutrients.get('food_name'),
                 'calories': nutrients.get('nf_calories'),
-                'proteins': nutrients.get('nf_protein'),  # Изменил с nf_proteins на nf_protein
-                'fats': nutrients.get('nf_total_fat'),  # Изменил с nf_fats на nf_total_fat
-                'carbs': nutrients.get('nf_total_carbohydrate'),  # Изменил с nf_carbs на nf_total_carbohydrate
+                'proteins': nutrients.get('nf_protein'),  
+                'fats': nutrients.get('nf_total_fat'),  
+                'carbs': nutrients.get('nf_total_carbohydrate'), 
                 'weight': weight
             }
             print("Result to be serialized:", result)

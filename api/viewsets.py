@@ -51,17 +51,13 @@ class TaskViewSet(viewsets.ModelViewSet):
     - destroy: Удаление задачи по ID (только для владельца).
     """
     serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated]  # Права доступа применяются ко всем действиям ViewSet
+    permission_classes = [IsAuthenticated] 
 
     def get_queryset(self):
         
         user = self.request.user
-        # Логируем, для какого пользователя запрашиваются задачи
         logger.debug(f"Запрос queryset задач для пользователя: {user.username}")
-        # Возвращаем только задачи текущего пользователя
         queryset = Task.objects.filter(user=user)
-        # Логируем количество найденных задач (может быть полезно для отладки)
-        # Уровень INFO - менее подробный, чем DEBUG
         logger.info(f"Найден queryset из {queryset.count()} задач для пользователя {user.username}")
         return queryset
 
@@ -71,11 +67,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         возвращать только НЕЗАВЕРШЕННЫЕ задачи пользователя,
         как это было в оригинальной вью-функции tasksView.
         """
-        # Получаем базовый queryset (уже отфильтрованный по пользователю в get_queryset)
         queryset = self.get_queryset().filter(completed=False)
         logger.info(f"Фильтрация списка задач: показ только невыполненных для {request.user.username}")
 
-        # Стандартная логика list из DRF (включая пагинацию, если настроена)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -93,11 +87,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         Вызывается перед сохранением сериализатора в методе create.
         """
         instance = serializer.save(user=self.request.user)
-        # Логируем успешное создание задачи
         logger.info(
             f"Пользователь {self.request.user.username} создал задачу id={instance.id}: '{instance.title[:30]}...'"
         )
-        # Не нужно возвращать Response, DRF сделает это сам
 
     def perform_update(self, serializer):
         """
@@ -116,40 +108,29 @@ class TaskViewSet(viewsets.ModelViewSet):
         """
         task_id = instance.id
         task_title = instance.title
-        user = self.request.user # Получаем пользователя до удаления
+        user = self.request.user 
         instance.delete()
-        # Используем уровень WARNING для потенциально деструктивных операций
         logger.warning(
             f"Пользователь {user.username} УДАЛИЛ задачу id={task_id}: '{task_title[:30]}...'"
         )
 
     @action(detail=True, methods=['put'], name='Complete Task')
-    # detail=True: Действие выполняется для конкретного объекта (нужен pk в URL)
-    # methods=['put']: Реагирует на PUT-запросы
-    # name: Имя для отображения в Browsable API DRF
     def complete(self, request, pk=None):
         """
         Помечает задачу как выполненную и начисляет очки/уровень пользователю.
         """
-        # get_object() автоматически найдет задачу по pk И проверит права доступа
-        # через get_queryset(), выбросив 404 если не найдено или не принадлежит юзеру.
         task = self.get_object()
 
-        # Проверка, не выполнена ли задача уже
         if task.completed:
             logger.warning(f"Попытка повторно завершить уже выполненную задачу id={task.id} пользователем {request.user.username}")
-            # Можно вернуть ошибку или просто текущее состояние задачи
-            serializer = self.get_serializer(task) # Используем get_serializer для консистентности
+            serializer = self.get_serializer(task)
             return Response(
                 {"detail": "Task is already completed.", "task": serializer.data},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Используем транзакцию, чтобы обновление задачи и профиля были атомарны
-        # Либо обе операции пройдут успешно, либо ни одна не сохранится.
         try:
             with transaction.atomic():
-                # 1. Обновляем задачу
                 task.completed = True
                 task.save()
                 logger.info(f"Задача id={task.id} помечена как выполненная пользователем {request.user.username}")
@@ -158,24 +139,20 @@ class TaskViewSet(viewsets.ModelViewSet):
                 try:
                     profile = request.user.profile # или task.user.profile
                 except AttributeError:
-                    # Обработка случая, если профиля нет (хотя он должен быть для этой логики)
                     logger.error(f"Не найден профиль для пользователя {request.user.username} при завершении задачи id={task.id}")
-                    # Откатываем транзакцию (произойдет автоматически при выходе из try с ошибкой)
-                    # и возвращаем ошибку сервера
                     return Response({"error": "User profile not found."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
                 original_points = profile.points
                 original_level = profile.level
 
-                profile.points += task.points # Используем task.points
+                profile.points += task.points 
 
-                # Логика повышения уровня (оставляем твою)
-                xp_threshold = int(1000 * (1.5 ** (profile.level - 1))) # Используй int(), если xp_threshold должен быть целым
+                xp_threshold = int(1000 * (1.5 ** (profile.level - 1)))
                 while profile.points >= xp_threshold:
                     profile.level += 1
                     profile.points -= xp_threshold
-                    xp_threshold = int(1000 * (1.5 ** (profile.level - 1))) # Пересчитываем для следующего уровня
+                    xp_threshold = int(1000 * (1.5 ** (profile.level - 1)))
 
                 profile.save()
                 logger.info(
@@ -185,26 +162,21 @@ class TaskViewSet(viewsets.ModelViewSet):
                 )
 
         except Exception as e:
-            # Логируем непредвиденную ошибку во время транзакции
             logger.exception(f"Ошибка при завершении задачи id={task.id} пользователем {request.user.username}: {e}")
             return Response({"error": "An error occurred while completing the task."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Возвращаем обновленную задачу
         serializer = self.get_serializer(task)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'], name='List Completed Tasks')
-    # detail=False: Действие относится ко всему списку, а не к одной задаче (нет pk)
-    # methods=['get']: Реагирует на GET-запросы
     def completed(self, request, *args, **kwargs):
         """
         Возвращает список выполненных задач текущего пользователя.
         Доступно по GET /api/tasks/completed/
         """
-        queryset = self.get_queryset().filter(completed=True) # Фильтруем по ВЫПОЛНЕННЫМ
+        queryset = self.get_queryset().filter(completed=True)
         logger.info(f"Запрос списка ВЫПОЛНЕННЫХ задач для {request.user.username}")
 
-        # Логика пагинации и сериализации (такая же, как в list)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -258,31 +230,24 @@ class QuestViewSet(viewsets.ReadOnlyModelViewSet):
 
         try:
             with transaction.atomic():
-                # 1. Блокируем и получаем профиль
                 try:
-                    # Попытка получить профиль, связанный с пользователем квеста
                     profile = Profile.objects.select_for_update().get(user=quest_to_complete.user)
                 except Profile.DoesNotExist:
-                     # Это не должно происходить, если у каждого пользователя есть профиль
                      logger.error(f"КРИТИЧЕСКАЯ ОШИБКА: Профиль для пользователя {quest_to_complete.user.username} (id={quest_to_complete.user.id}) не найден при попытке завершить квест {quest_to_complete.id}.")
                      return Response({"detail": "Профиль пользователя не найден."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-                # 2. Обновляем квест
                 quest_to_complete.status = 'COMPLETED'
                 quest_to_complete.completed_at = timezone.now()
-                # Не сохраняем сразу, сохраним в конце транзакции, если награды начислятся
 
-                # 3. Начисляем очки и обрабатываем уровень
                 reward_points = quest_to_complete.reward_points
-                original_points = profile.points # Сохраняем для логирования
-                original_level = profile.level   # Сохраняем для логирования
+                original_points = profile.points 
+                original_level = profile.level 
 
                 if reward_points > 0:
                     profile.points += reward_points
                     logger.info(f"Игроку {user.username} начислено {reward_points} Points за квест '{quest_to_complete.title}'. Очки до: {original_points}, после: {profile.points}")
 
-                    # Логика повышения уровня
                     xp_threshold = int(1000 * (1.5 ** (profile.level - 1)))
                     if xp_threshold <= 0: xp_threshold = 1000 # Защита
 
@@ -292,26 +257,21 @@ class QuestViewSet(viewsets.ReadOnlyModelViewSet):
                         profile.points -= xp_threshold
                         profile.level += 1
                         logger.info(f"Игрок {user.username} ДОСТИГ УРОВНЯ {profile.level}!")
-                        # Пересчитываем порог для НОВОГО уровня
                         xp_threshold = int(1000 * (1.5 ** (profile.level - 1)))
-                        if xp_threshold <= 0: xp_threshold = 1000 + (profile.level -1) * 500 # Защита/альтернатива
+                        if xp_threshold <= 0: xp_threshold = 1000 + (profile.level -1) * 500 
 
                     if leveled_up:
                          logger.info(f"Обновлен профиль {user.username} после левел-апа: Уровень {original_level}->{profile.level}, Очки {original_points}->{profile.points}.")
 
-                # Сохраняем и квест, и профиль в конце атомарной операции
                 quest_to_complete.save()
                 profile.save()
 
                 logger.info(f"Квест id={quest_to_complete.id} '{quest_to_complete.title[:30]}...' успешно завершен пользователем {user.username}.")
 
-            # Транзакция прошла успешно
-            # Используем self.get_serializer() для получения сериализатора с контекстом
             serializer = self.get_serializer(quest_to_complete)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            # Ловим другие ошибки внутри транзакции
             logger.exception(f"Ошибка при завершении квеста {pk} для пользователя {user.username} внутри транзакции: {e}")
             return Response(
                 {"detail": "Не удалось завершить квест из-за внутренней ошибки."},
@@ -373,9 +333,8 @@ class HabitViewSet(viewsets.ModelViewSet):
 
         habit_id = instance.id
         habit_title = instance.title
-        user = self.request.user # Получаем пользователя до удаления
+        user = self.request.user 
         instance.delete()
-        # Используем уровень WARNING для потенциально деструктивных операций
         logger.warning(
             f"Пользователь {user.username} УДАЛИЛ привычку id={habit_id}: '{habit_title[:30]}...'"
         )
@@ -516,7 +475,6 @@ class FriendshipViewSet(viewsets.ViewSet):
                  status=status.HTTP_400_BAD_REQUEST
              )
 
-        # Fetch the pending request outside the transaction first
         friendship = get_object_or_404(
             Friendship,
             user__id=sender_id,
@@ -524,19 +482,15 @@ class FriendshipViewSet(viewsets.ViewSet):
             status='PENDING'
         )
 
-        # Store the sender user object before deleting the friendship request
         sender_user = friendship.user
 
         try:
             with transaction.atomic():
-                # Delete the pending request
                 friendship.delete()
 
-                # Create the established friendship record (assuming this is your model logic)
-                # If your logic involves updating the existing record or creating two records, adjust accordingly.
                 Friendship.objects.create(
                     user=request.user,
-                    friend=sender_user, # Use the stored user object
+                    friend=sender_user, 
                     status='FRIEND'
                 )
                 Notification.objects.create(
@@ -574,9 +528,8 @@ class FriendshipViewSet(viewsets.ViewSet):
             status='PENDING'
         )
 
-        # Store the sender user object before deleting the friendship request
         sender_user = friendship.user
-        friendship_id_for_log = friendship.id # Store ID for logging in case of error
+        friendship_id_for_log = friendship.id 
 
         try:
             with transaction.atomic():
@@ -642,6 +595,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
     
+
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
         msg = self.get_object()
@@ -651,13 +605,13 @@ class MessageViewSet(viewsets.ModelViewSet):
         msg.save(update_fields=['is_read'])
         return Response(self.get_serializer(msg).data)
 
+
     @action(detail=False, methods=['get'])
     def threads(self, request):
         """
         Список диалогов: для каждого собеседника — время и текст последнего сообщения.
         """
         user = request.user
-        # Аннотируем “other” пользователя и берём максимум по времени
         threads = (
             Message.objects
             .filter(Q(sender=user) | Q(recipient=user))
@@ -717,6 +671,7 @@ class GroupViewSet(viewsets.ModelViewSet):
         group.members.add(request.user)
         return Response({'status': 'joined'}, status=status.HTTP_200_OK)
 
+
     @action(detail=True, methods=['post'])
     def leave(self, request, pk=None):
         group = self.get_object()
@@ -750,6 +705,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user).order_by('-created_at')
 
+
     @action(detail=True, methods=['post'])
     def mark_as_read(self, request, pk=None):
         notif = self.get_object()
@@ -757,11 +713,13 @@ class NotificationViewSet(viewsets.ModelViewSet):
         notif.save(updated_fields=['is_read'])
         return Response({'status': 'marked as read'}, status=status.HTTP_200_OK)
 
+
     @action(detail=False, methods=['post'])
     def mark_all_as_read(self, request):
         qs = self.get_queryset().filter(is_read=False).count()
         updated = qs.updated(is_read=True)
         return Response({'marked_count'}, updated)
+
 
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
@@ -774,6 +732,7 @@ class ConsumedCaloriesViewSet(viewsets.ModelViewSet):
     serializer_class = ConsumedCaloriesSerializer
     permission_classes = [IsAuthenticated]
     lookup_id = 'id'
+
 
 def get_queryset(self):
     return ConsumedCalories.objects.filter(user=self.request.user)
@@ -801,6 +760,7 @@ def by_days(self, request, period=None):
         .order_by('date')
     )
     return Response(records)
+
 
 @action(detail=False, methods=['get'], url_path='summary')
 def summary(self, request):
@@ -861,6 +821,7 @@ class UserNutritionGoalViewSet(
             }
         )
         return obj  
+
 
     def perform_update(self, serializer):
         serializer.save(user=self.request.user)
@@ -886,6 +847,7 @@ class GroupViewSet(viewsets.ModelViewSet):
         group.members.add(request.user)
         return Response({'status': 'joined'}, status=status.HTTP_200_OK)
 
+
     @action(detail=True, methods=['post'])
     def leave(self, request, pk=None):
         group = self.get_object()
@@ -903,6 +865,7 @@ class GroupMessageViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('You are not a member of this group')
         return GroupMessage.objects.filter(group=group)
 
+
     def perform_create(self, serializer):
         group = get_object_or_404(Group, id=self.kwargs['group_id'])
         if self.request.user not in group.members.all():
@@ -919,6 +882,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user).order_by('-created_at')
 
+
     @action(detail=True, methods=['post'])
     def mark_as_read(self, request, pk=None):
         notif = self.get_object()
@@ -926,11 +890,13 @@ class NotificationViewSet(viewsets.ModelViewSet):
         notif.save(updated_fields=['is_read'])
         return Response({'status': 'marked as read'}, status=status.HTTP_200_OK)
 
+
     @action(detail=False, methods=['post'])
     def mark_all_as_read(self, request):
         qs = self.get_queryset().filter(is_read=False).count()
         updated = qs.updated(is_read=True)
         return Response({'marked_count'}, updated)
+
 
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
@@ -943,6 +909,7 @@ class ConsumedCaloriesViewSet(viewsets.ModelViewSet):
     serializer_class = ConsumedCaloriesSerializer
     permission_classes = [IsAuthenticated]
     lookup_id = 'id'
+
 
 def get_queryset(self):
     return ConsumedCalories.objects.filter(user=self.request.user)
@@ -970,6 +937,7 @@ def by_days(self, request, period=None):
         .order_by('date')
     )
     return Response(records)
+
 
 @action(detail=False, methods=['get'], url_path='summary')
 def summary(self, request):
@@ -1030,6 +998,7 @@ class UserNutritionGoalViewSet(
             }
         )
         return obj  
+
 
     def perform_update(self, serializer):
         serializer.save(user=self.request.user)

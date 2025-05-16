@@ -21,7 +21,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'change-me-in-production')
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'false') == 'True'
@@ -32,15 +32,18 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.yourprovider.com'
 EMAIL_PORT = 587
 EMAIL_HOST_USER = 'no-reply@yourdomain.com'
-EMAIL_HOST_PASSWORD = '…'
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = 'no-reply@yourdomain.com'
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -50,7 +53,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(',')
 
 
 # Application definition
@@ -191,8 +194,9 @@ django_heroku.settings(locals())
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
@@ -201,12 +205,12 @@ CELERY_TIMEZONE = 'Europe/Kyiv'
 
 CELERY_BEAT_SCHEDULE = {
     'update-task-deadline-every-midnight': {
-        'task': 'api.tasks.update_task_deadline',  # Путь к задаче
-        'schedule': crontab(minute=0, hour=0),  # Каждый день в 00:00
+        'task': 'api.tasks.update_task_deadline',  
+        'schedule': crontab(minute=0, hour=0), 
     },
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 
 LOGGING = {
@@ -228,13 +232,7 @@ LOGGING = {
             'class': 'logging.StreamHandler', # Вывод в stderr (консоль)
             'formatter': 'simple', # Используем простой формат
         },
-        # Можно добавить хендлер для записи в файл:
-        # 'file': {
-        #     'level': 'INFO',
-        #     'class': 'logging.FileHandler',
-        #     'filename': BASE_DIR / 'django_debug.log', # Путь к файлу логов
-        #     'formatter': 'verbose',
-        # },
+
     },
     'loggers': { # Конфигурация для конкретных логгеров
         'django': { # Логи самого Django

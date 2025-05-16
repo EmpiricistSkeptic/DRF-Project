@@ -42,7 +42,6 @@ class AchievementSerializer(serializers.ModelSerializer):
 class UserAchievementSerializer(serializers.ModelSerializer):
     achievement = AchievementSerializer(read_only=True)
     
-    # Добавляем вычисляемые поля для прогресса
     next_tier = serializers.SerializerMethodField()
     next_requirement = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
@@ -202,12 +201,10 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    # Read/write fields
     username = serializers.CharField(source='user.username', required=False)
     avatar = serializers.ImageField(write_only=True, required=False, allow_null=True)
     avatar_clear = serializers.BooleanField(write_only=True, required=False)
 
-    # Read-only fields
     email = serializers.EmailField(source='user.email', read_only=True)
     points = serializers.IntegerField(read_only=True)
     total_points = serializers.SerializerMethodField()
@@ -221,7 +218,6 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['email', 'points', 'total_points', 'avatar_url', 'level']
     
     def get_total_points(self, obj):
-        # Exponential growth of total points by level
         return int(1000 * (1.5 ** (obj.level - 1)))
     
     def get_avatar_url(self, obj):
@@ -232,13 +228,11 @@ class ProfileSerializer(serializers.ModelSerializer):
         return None
     
     def update(self, instance, validated_data):
-        # Update nested user fields
         user_data = validated_data.pop('user', {})
         if 'username' in user_data:
             instance.user.username = user_data['username']
             instance.user.save()
 
-        # Handle avatar clearing or updating
         if validated_data.pop('avatar_clear', False):
             if instance.avatar:
                 instance.avatar.delete(save=False)
@@ -355,8 +349,6 @@ class UserHabitSerializer(serializers.ModelSerializer):
     Используется для создания, обновления (частичного) и получения привычек.
     Поля streak и last_tracked обновляются через отдельный endpoint/логику.
     """
-    # Можно добавить поле для отображения username, если нужно
-    # user_username = serializers.CharField(source='user.username', read_only=True) 
     
     class Meta:
         model = UserHabit
@@ -365,40 +357,34 @@ class UserHabitSerializer(serializers.ModelSerializer):
             'title', 
             'description', 
             'icon', 
-            'frequency', # Добавлено поле
-            'notification_enabled', # Добавлено поле
-            'streak', # Отображаем, но не изменяем напрямую
-            'last_tracked', # Отображаем, но не изменяем напрямую
-            'is_active', # Позволяем изменять (для деактивации)
+            'frequency', 
+            'notification_enabled', 
+            'streak',
+            'last_tracked', 
+            'is_active', 
             'created_at', 
             'updated_at',
-            # 'user_username' # Если добавили выше
-            # 'user' # Обычно ID пользователя не возвращают или делают read_only
         ]
         
-        # Поля, которые НЕЛЬЗЯ изменять через стандартные POST/PATCH запросы
-        # Они либо устанавливаются автоматически, либо через специальную логику (track_habit)
         read_only_fields = [
             'id', 
             'streak', 
             'last_tracked', 
             'created_at', 
             'updated_at',
-            # 'user' # Если решите включить user ID, сделайте его read_only
         ]
         
-        # Дополнительные настройки для полей
         extra_kwargs = {
             'title': {
                 'required': True, 
-                'error_messages': { # Кастомные сообщения об ошибках
+                'error_messages': {
                     'required': 'Пожалуйста, укажите название привычки.',
                     'blank': 'Название привычки не может быть пустым.',
                 }
             },
             'description': {'required': False, 'allow_blank': True, 'allow_null': True},
             'icon': {'required': False, 'allow_blank': True, 'allow_null': True},
-            'frequency': {'required': False}, # Можно сделать обязательным, если нужно
+            'frequency': {'required': False},
             'notification_enabled': {'required': False},
             'is_active': {'required': False},
         }

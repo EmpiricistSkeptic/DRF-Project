@@ -10,7 +10,6 @@ SYSTEM_PERSONA = (
 )
 
 PROMPT_TEMPLATES = {
-    # --- Existing (Modified) ---
 
     "status": (
         f"{SYSTEM_PERSONA}\n"
@@ -31,7 +30,6 @@ PROMPT_TEMPLATES = {
      "Player sent a casual message, greeting, or a simple check-in.\n\n"
      "--- PLAYER CONTEXT ---\n"
      "Summary: {user_data_summary}\n"
-     # Minimal context needed, maybe just status?
      "Current Level: {user_level}\n"
      "Active tasks/quests (count or brief mention):\n{active_tasks_summary}\n{active_quests_summary}\n"
      "--- END OF CONTEXT ---\n\n"
@@ -43,7 +41,7 @@ PROMPT_TEMPLATES = {
      "4. **ABSOLUTELY NO** quest generation or complex advice here."
     ),
 
-    "books_manga": ( # Renamed for clarity
+    "books_manga": ( 
         f"{SYSTEM_PERSONA}\n"
         "The Player is interested in books, manga, or reading.\n\n"
         "--- PLAYER CONTEXT ---\n"
@@ -58,13 +56,12 @@ PROMPT_TEMPLATES = {
         "3. **DO NOT USE** the tags `[QUEST_DATA_START]`...`[QUEST_DATA_END]` in this scenario. Suggest quests/tasks informally."
     ),
 
-    "tasks": ( # Stricter tag requirements
+    "tasks": (
         f"{SYSTEM_PERSONA}\n"
         "The Player reports completing a Task or progress on it.\n\n"
         "--- PLAYER CONTEXT ---\n"
         "Summary: {user_data_summary}\n"
-        # Providing info on completed tasks WITH DETAILS, based on which a quest can be generated
-        "Recently completed tasks:\n{completed_tasks_summary}\n" # Now contains both title and description in the 'Details:' field
+        "Recently completed tasks:\n{completed_tasks_summary}\n" 
         "Current Level: {user_level}\n"
         "Active quests:\n{active_quests_summary}\n"
         "--- END OF CONTEXT ---\n\n"
@@ -94,7 +91,7 @@ PROMPT_TEMPLATES = {
         "5. If you DO NOT generate a quest, just provide a standard response confirming completion and possibly a motivating comment about growth."
     ),
 
-    "nutrition": ( # Thematic language added
+    "nutrition": (
         f"{SYSTEM_PERSONA}\n"
         "The Player is asking about 'system fuel' parameters (nutrition).\n\n"
         "--- PLAYER CONTEXT ---\n"
@@ -116,17 +113,14 @@ PROMPT_TEMPLATES = {
         "--- PLAYER CONTEXT ---\n"
         "Summary: {user_data_summary}\n"
         "Active tasks:\n{active_tasks_summary}\n"
-        # Recently completed tasks WITH DETAILS
         "Recently completed tasks:\n{completed_tasks_summary}\n"
         "Active quests:\n{active_quests_summary}\n"
         "Player's Current Level: {user_level}\n"
         "Known skills/interests: Languages (Spa./Eng.), Programming, Strength/Combat training, Books/Manga/Anime.\n"
         "--- END OF CONTEXT ---\n\n"
         "Player's message: {user_message}\n\n"
-        # CHANGE HERE: Added explicit analysis of completed task details
         "1. Analyze the **DETAILS** of the Player's recently completed tasks ({completed_tasks_summary}) to understand their current focus and successes.\n"
         "2. GENERATE A NEW ENGAGING QUEST ('mission' or 'hidden task'), suitable for the Player's Level {user_level}. **BASE it on their INTERESTS (languages, coding, physical training, media) AND THE ANALYSIS RESULTS OF COMPLETED TASKS.** Suggest something that will help them 'rank up'.\n"
-        # Renumbered subsequent points
         "3. You MAY add a short, intriguing introductory message ('New quest portal detected...') BEFORE the quest data.\n"
         "4. **CRITICALLY IMPORTANT REQUIREMENT:** IMMEDIATELY AFTER the introductory message (if any), you **MUST** provide ALL parameters of the generated quest **STRICTLY INSIDE THE SPECIAL TAGS:** `[QUEST_DATA_START]` and `[QUEST_DATA_END]`. \n"
         "   **WHY THIS IS IMPORTANT:** The backend system SPECIFICALLY LOOKS FOR THESE TAGS to automatically create the quest in the database. **IF YOU DO NOT USE THESE TAGS AND THE EXACT FORMAT WITHIN THEM, THE QUEST WILL NOT BE CREATED, even if you write that it has been added!**\n\n"
@@ -156,8 +150,8 @@ PROMPT_TEMPLATES = {
         "The Player is experiencing a 'mental debuff' (fatigue, lack of motivation), standing at the threshold of a 'trial of will'.\n\n"
         "--- PLAYER CONTEXT ---\n"
         "Summary: {user_data_summary}\n"
-        "Active tasks:\n{active_tasks_summary}\n" # Current trials
-        "Active quests:\n{active_quests_summary}\n" # The Great Path
+        "Active tasks:\n{active_tasks_summary}\n" 
+        "Active quests:\n{active_quests_summary}\n" 
         "Main goals/skills (Development Vectors): Languages (Spa./Eng.), Programming, Physical form (Strength/Combat), Knowledge (Books), Possibly, Search for Meaning.\n" # Added
         "--- END OF CONTEXT ---\n\n"
         "Player's message: {user_message}\n\n"
@@ -177,12 +171,12 @@ PROMPT_TEMPLATES = {
         "**IMPORTANT:** The response must be CONCENTRATED and STRONG. Don't try to fit everything in at once, choose 2-3 key ideas from the list above and integrate them into the System's response. **DO NOT GIVE A LECTURE on philosophy.**"
     ),
 
-    "skill_progress": ( # Tags added for optional quests
+    "skill_progress": ( 
         f"{SYSTEM_PERSONA}\n"
         "The Player reports progress in 'leveling up a Skill' (Spanish, English, programming, strength, martial arts, etc.).\n\n"
         "--- PLAYER CONTEXT ---\n"
         "Summary: {user_data_summary}\n"
-        "Current Level: {user_level}\n" # For quest difficulty
+        "Current Level: {user_level}\n" 
         "Active tasks/quests (related to the skill?):\n{active_tasks_summary}\n{active_quests_summary}\n"
         "--- END OF CONTEXT ---\n\n"
         "Player's message: {user_message}\n\n"
@@ -206,11 +200,10 @@ PROMPT_TEMPLATES = {
         "6. If you DO NOT generate a quest, simply provide advice on the next step in learning the skill."
     ),
 
-    "default": ( # Slightly enhanced
+    "default": ( 
         f"{SYSTEM_PERSONA}\n"
         "The Player sent a general message ('unclassified signal'). Analyze it in the context of the System and the Player.\n\n"
         "--- PLAYER CONTEXT ---\n"
-        # Passing almost all context, the AI will select what's relevant
         "Summary: {user_data_summary}\n"
         "Active tasks:\n{active_tasks_summary}\n"
         "Recently completed tasks:\n{completed_tasks_summary}\n"
@@ -226,9 +219,7 @@ PROMPT_TEMPLATES = {
         "- **DO NOT GENERATE** quests with tags in this scenario."
     ),
 
-    # --- New Scenarios ---
-
-    "media_recommendation": ( # For Anime/Manga/Books
+    "media_recommendation": ( 
         f"{SYSTEM_PERSONA}\n"
         "The Player requests 'leisure data' (anime, manga, possibly books) or discusses them.\n\n"
         "--- PLAYER CONTEXT ---\n"
@@ -248,7 +239,6 @@ PROMPT_TEMPLATES = {
         "The Player asks about a training plan, focus on physical preparation (strength, martial arts), or reports an upcoming training session.\n\n"
         "--- PLAYER CONTEXT ---\n"
         "Summary: {user_data_summary}\n"
-        # Recent physical tasks/quests WITH DETAILS
         "Recent physical tasks/quests:\n{completed_tasks_summary}\n{active_quests_summary}\n" # Backend should ideally filter by 'physical' type if possible
         "Nutrition today (important for energy):\n{nutrition_today_summary}\n"
         "Known skills: Strength, Martial Arts.\n"
@@ -256,13 +246,9 @@ PROMPT_TEMPLATES = {
         "--- END OF CONTEXT ---\n\n"
         "Player's message: {user_message}\n\n"
         "The Player requests a 'physical enhancement protocol'.\n"
-        # CHANGE HERE: Added explicit analysis of completed task details
         "1. Analyze their request, the **DETAILS** of recent physical activity ({completed_tasks_summary}), and current status (level, nutrition).\n"
-        # Point 2 unchanged in meaning
         "2. Suggest a FOCUS for the next training session (e.g., 'Focus on upper body strength recommended', 'Optimal to practice strike techniques [style name, if known] today', 'Cardio protocol for endurance enhancement activated').\n"
-        # CHANGE HERE: Instruction to base quest generation on details
         "3. **IF the Player asks for a specific plan OR you deem it a logical continuation based on the DETAILS of previous activity**, you CAN GENERATE A NEW FULL-FLEDGED QUEST (e.g., 'Power Surge: 3x5 bench press at 80% max', 'Combat Meditation: 30 minutes practicing kata X').\n"
-        # Renumbered subsequent points
         "4. **IF GENERATING A QUEST, STRICT FORMATTING RULES APPLY (as in 'tasks'/'quests'):**\n"
         "   a) **MUST** use the tags `[QUEST_DATA_START]` and `[QUEST_DATA_END]`.\n"
         "   b) **STRICTLY** adhere to the 'Key: Value' format inside the tags.\n"

@@ -28,7 +28,7 @@ class Category(models.Model):
 
 
 class UnitType(models.Model):
-    name = models.CharField(max_length=50)  # час., мин., стр., сл., уд.
+    name = models.CharField(max_length=50) 
     symbol = models.CharField(max_length=10)  
     
     def __str__(self):
@@ -281,11 +281,11 @@ class ChatHistory(models.Model):
     scenario = models.CharField(
         max_length=50,
         verbose_name="Определенный сценарий",
-        blank=True, # Может быть пустым при ошибке определения
+        blank=True,
         null=True
     )
     timestamp = models.DateTimeField(
-        default=timezone.now, # Автоматически устанавливаем время создания записи
+        default=timezone.now,
         verbose_name="Время обмена"
     )
     error_occurred = models.BooleanField(
@@ -313,11 +313,11 @@ class UserHabit(models.Model):
     user = models.ForeignKey(
         User, 
         on_delete=models.CASCADE,
-        related_name='habits' # Добавлено для удобных обратных запросов user.habits.all()
+        related_name='habits' 
     )
     title = models.CharField(
-        max_length=100, # Немного увеличил длину для гибкости
-        verbose_name="Название привычки" # Добавлено для админки и форм
+        max_length=100, 
+        verbose_name="Название привычки" 
     )
     description = models.TextField(
         blank=True, 
@@ -335,35 +335,34 @@ class UserHabit(models.Model):
     )
     last_tracked = models.DateField(
         null=True, 
-        blank=True, # Дата может отсутствовать, если привычка никогда не отмечалась
+        blank=True,
         verbose_name="Дата последней отметки"
     )
     icon = models.CharField(
-        max_length=50, # Установлена адекватная длина
+        max_length=50, 
         blank=True, 
         null=True, 
         default='list-ul',
         verbose_name="Иконка"
     )
-    frequency = models.CharField( # Добавил поле частоты, т.к. оно есть во фронтенде
+    frequency = models.CharField( 
         max_length=20, 
         default='Daily', 
         choices=[('Daily', 'Ежедневно'), ('Weekly', 'Еженедельно'), ('Monthly', 'Ежемесячно')], # Пример выбора
         verbose_name="Частота"
     )
-    notification_enabled = models.BooleanField( # Добавил поле уведомлений
+    notification_enabled = models.BooleanField(
         default=False, 
         verbose_name="Уведомления включены"
     )
     
-    # Метаданные времени
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
 
     class Meta:
         verbose_name = "Привычка пользователя"
         verbose_name_plural = "Привычки пользователей"
-        ordering = ['-created_at'] # Сортировка по умолчанию
+        ordering = ['-created_at']
 
     def track_habit(self):
         """
@@ -374,37 +373,26 @@ class UserHabit(models.Model):
         """
         today = timezone.now().date()
 
-        # --- Проверка: Не была ли уже отмечена сегодня? ---
-        # Эту проверку ЛУЧШЕ делать в View перед вызовом этого метода,
-        # но для надежности можно оставить и здесь.
         if self.last_tracked == today:
             logger.warning(f"Habit '{self.title}' (ID: {self.id}) already tracked today ({today}).")
-            return False # Сигнализируем, что действие не требуется
+            return False
 
-        # --- Логика обновления стрика ---
-        if self.last_tracked: # Если привычка уже отмечалась ранее
+        if self.last_tracked:
             if today == self.last_tracked + timedelta(days=1):
-                # Продолжаем стрик
                 self.streak += 1
                 logger.info(f"Habit '{self.title}' (ID: {self.id}) streak continued: {self.streak} days.")
             elif today > self.last_tracked + timedelta(days=1):
-                # Был пропуск, сбрасываем стрик до 1
                 self.streak = 1
                 logger.info(f"Habit '{self.title}' (ID: {self.id}) streak reset to 1 after a gap.")
-            # else: today < self.last_tracked + timedelta(days=1) - это случай отметки в прошлом или дубль (обработан выше), стрик не меняем
         else:
-            # Это самая первая отметка привычки
             self.streak = 1
             logger.info(f"Habit '{self.title}' (ID: {self.id}) tracked for the first time. Streak: 1.")
 
-        # --- Обновление даты последней отметки ---
         self.last_tracked = today
         
-        # --- Сохранение ---
-        # Сохраняем только измененные поля для эффективности и чтобы не затереть `updated_at` без нужды
         self.save(update_fields=['streak', 'last_tracked', 'updated_at']) 
         
-        return True # Успешная отметка
+        return True
 
     def __str__(self):
         return f"{self.title} ({self.user.get_username()})"
