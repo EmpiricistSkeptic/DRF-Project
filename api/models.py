@@ -17,6 +17,24 @@ DIFFICULTY_CHOICES = [
     ('E', 'E'),
 ]
 
+
+class Category(models.Model):
+    name = models.CharField(max_length=50)
+    description = models.TextField(blank=True)
+    icon = models.ImageField(upload_to='categories/', blank=True)
+    
+    def __str__(self):
+        return self.name
+
+
+class UnitType(models.Model):
+    name = models.CharField(max_length=50) 
+    symbol = models.CharField(max_length=10)  
+    
+    def __str__(self):
+        return self.name
+
+
 def default_deadline():
     return now() + timedelta(hours=24)
 
@@ -28,17 +46,20 @@ class Task(models.Model):
     completed = models.BooleanField(default=False)
     difficulty = models.CharField(max_length=1, choices=DIFFICULTY_CHOICES, default='E')
     points = models.IntegerField(default=0)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
+    unit_type = models.ForeignKey(UnitType, on_delete=models.SET_NULL, null=True)
+    unit_amount = models.IntegerField(default=0)
     updated = models.DateTimeField(auto_now=True)
-    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-updated']
+    
 
     def __str__(self):
         title_display = self.title[:50] if self.title and self.title.strip() else 'Без названия'
         description_display = self.description[:100] if self.description and self.description.strip() else 'Нет описания'
         return f"{title_display} - {description_display}"
 
-    
-    class Meta:
-        ordering = ['-updated']
 
 
 class Quest(models.Model):
@@ -135,6 +156,7 @@ class Group(models.Model):
     def __str__(self):
         return self.name
     
+
 class GroupMessage(models.Model):
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -175,24 +197,64 @@ class UserNutritionGoal(models.Model):
 
 
 class Achievement(models.Model):
-    title = models.CharField(max_length=100)
+    TIER_CHOICES = [
+        ('BRONZE', 'Bronze'),
+        ('SILVER', 'Silver'),
+        ('GOLD', 'Gold'),
+        ('PLATINUM', 'Platinium'),
+        ('DIAMOND', 'Diamond'),
+    ]
+
+
+    name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    icon = models.CharField(max_length=50)  
+    icon = models.ImageField(upload_to='achievements/')
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, default=1)
+    unit_type = models.ForeignKey('UnitType', on_delete=models.CASCADE, default=1)
+
+    bronze_requirement = models.IntegerField(default=10)
+    silver_requirement = models.IntegerField(default=50)
+    gold_requirement = models.IntegerField(default=100)
+    platinum_requirement = models.IntegerField(default=500)
+    diamond_requirement = models.IntegerField(default=1000)
 
     def __str__(self):
-        return self.title
+        return self.name
+    
     
 class UserAchievement(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_achievements')
     achievement = models.ForeignKey(Achievement, on_delete=models.CASCADE)
-    unlocked = models.BooleanField(default=False)
-    unlocked_at = models.DateTimeField(blank=True, null=True)
+    current_progress = models.IntegerField(default=0)
+    current_tier = models.CharField(max_length=10, choices=Achievement.TIER_CHOICES, default='BRONZE')
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('user', 'achievement')
+
 
     def __str__(self):
-        return f"{self.user.username} - {self.achievement.title}"
+        return f"{self.user.username} - {self.achievement.name}"
 
     
+    def update_progress(self, value):
+        self.current_progress += value
 
+        if self.current_progress >= self.achievement.diamond_requirement:
+            self.current_tier = 'DIAMOND'
+            if not self.completed:
+                self.completed = True
+                self.completed_at = timezone.now()
+        elif self.current_progress >= self.achievement.platinum_requirement:
+            self.current_tier = 'PLATINUM'
+        elif self.current_progress >= self.achievement.gold_requirement:
+            self.current_tier = 'GOLD'
+        elif self.current_progress >= self.achievement.silver_requirement:
+            self.current_tier = 'SILVER'
+        else:
+            self.current_tier = 'BRONZE'
+        self.save()
 
 
 class ChatHistory(models.Model):
@@ -219,11 +281,11 @@ class ChatHistory(models.Model):
     scenario = models.CharField(
         max_length=50,
         verbose_name="Определенный сценарий",
-        blank=True, # Может быть пустым при ошибке определения
+        blank=True,
         null=True
     )
     timestamp = models.DateTimeField(
-        default=timezone.now, # Автоматически устанавливаем время создания записи
+        default=timezone.now,
         verbose_name="Время обмена"
     )
     error_occurred = models.BooleanField(
@@ -251,11 +313,11 @@ class UserHabit(models.Model):
     user = models.ForeignKey(
         User, 
         on_delete=models.CASCADE,
-        related_name='habits' # Добавлено для удобных обратных запросов user.habits.all()
+        related_name='habits' 
     )
     title = models.CharField(
-        max_length=100, # Немного увеличил длину для гибкости
-        verbose_name="Название привычки" # Добавлено для админки и форм
+        max_length=100, 
+        verbose_name="Название привычки" 
     )
     description = models.TextField(
         blank=True, 
@@ -273,35 +335,34 @@ class UserHabit(models.Model):
     )
     last_tracked = models.DateField(
         null=True, 
-        blank=True, # Дата может отсутствовать, если привычка никогда не отмечалась
+        blank=True,
         verbose_name="Дата последней отметки"
     )
     icon = models.CharField(
-        max_length=50, # Установлена адекватная длина
+        max_length=50, 
         blank=True, 
         null=True, 
         default='list-ul',
         verbose_name="Иконка"
     )
-    frequency = models.CharField( # Добавил поле частоты, т.к. оно есть во фронтенде
+    frequency = models.CharField( 
         max_length=20, 
         default='Daily', 
         choices=[('Daily', 'Ежедневно'), ('Weekly', 'Еженедельно'), ('Monthly', 'Ежемесячно')], # Пример выбора
         verbose_name="Частота"
     )
-    notification_enabled = models.BooleanField( # Добавил поле уведомлений
+    notification_enabled = models.BooleanField(
         default=False, 
         verbose_name="Уведомления включены"
     )
     
-    # Метаданные времени
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
 
     class Meta:
         verbose_name = "Привычка пользователя"
         verbose_name_plural = "Привычки пользователей"
-        ordering = ['-created_at'] # Сортировка по умолчанию
+        ordering = ['-created_at']
 
     def track_habit(self):
         """
@@ -312,37 +373,26 @@ class UserHabit(models.Model):
         """
         today = timezone.now().date()
 
-        # --- Проверка: Не была ли уже отмечена сегодня? ---
-        # Эту проверку ЛУЧШЕ делать в View перед вызовом этого метода,
-        # но для надежности можно оставить и здесь.
         if self.last_tracked == today:
             logger.warning(f"Habit '{self.title}' (ID: {self.id}) already tracked today ({today}).")
-            return False # Сигнализируем, что действие не требуется
+            return False
 
-        # --- Логика обновления стрика ---
-        if self.last_tracked: # Если привычка уже отмечалась ранее
+        if self.last_tracked:
             if today == self.last_tracked + timedelta(days=1):
-                # Продолжаем стрик
                 self.streak += 1
                 logger.info(f"Habit '{self.title}' (ID: {self.id}) streak continued: {self.streak} days.")
             elif today > self.last_tracked + timedelta(days=1):
-                # Был пропуск, сбрасываем стрик до 1
                 self.streak = 1
                 logger.info(f"Habit '{self.title}' (ID: {self.id}) streak reset to 1 after a gap.")
-            # else: today < self.last_tracked + timedelta(days=1) - это случай отметки в прошлом или дубль (обработан выше), стрик не меняем
         else:
-            # Это самая первая отметка привычки
             self.streak = 1
             logger.info(f"Habit '{self.title}' (ID: {self.id}) tracked for the first time. Streak: 1.")
 
-        # --- Обновление даты последней отметки ---
         self.last_tracked = today
         
-        # --- Сохранение ---
-        # Сохраняем только измененные поля для эффективности и чтобы не затереть `updated_at` без нужды
         self.save(update_fields=['streak', 'last_tracked', 'updated_at']) 
         
-        return True # Успешная отметка
+        return True
 
     def __str__(self):
         return f"{self.title} ({self.user.get_username()})"
