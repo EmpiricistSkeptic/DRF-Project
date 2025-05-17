@@ -6,4 +6,5 @@ venv/
 *.sqlite3
 *.db
 *.log
-*.env
+*.env__pycache__/
+*.pyc
