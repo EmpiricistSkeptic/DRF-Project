@@ -1,5 +1,6 @@
 from django.urls import path, include
 from . import views
+from api.agent.manager import AssistantAPIView
 from .viewsets import TaskViewSet, QuestViewSet, HabitViewSet, ProfileViewSet, FriendshipViewSet, MessageViewSet, GroupViewSet, GroupMessageViewSet, NotificationViewSet, ConsumedCaloriesViewSet, UserNutritionGoalViewSet, AchievementViewSet, UserAchievementViewSet, UnitTypeViewSet, CategoryViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.routers import DefaultRouter
@@ -40,7 +41,7 @@ urlpatterns = [
     path('get-calories/', views.get_calories, name='get_calories'),
 
     
-    path('assistant/', views.AssistantAPIView.as_view(), name='assistant'),
+    path('assistant/', AssistantAPIView.as_view(), name='assistant'),
     path('chat/history/', views.get_chat_history, name='chat_history_api'),
 ]
 

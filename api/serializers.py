@@ -127,7 +127,7 @@ class TaskSerializer(ModelSerializer):
 class UserRegistrationSerializer(ModelSerializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
-    password2 = serializers.CharField(write_only=True, label="Потдверждение пароля")
+    password2 = serializers.CharField(write_only=True, label="Confirm password")
     email = serializers.EmailField()
 
     class Meta:
@@ -137,13 +137,13 @@ class UserRegistrationSerializer(ModelSerializer):
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("Этот email уже зарегестрирован!")
+            raise serializers.ValidationError("This email is already registered!")
         return value.lower()
     
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password2": "Пароли не совпадают."})
+            raise serializers.ValidationError({"password2": "The passwords do not match."})
         validate_password(attrs['password'])
         return attrs
     
@@ -165,9 +165,9 @@ class UserRegistrationSerializer(ModelSerializer):
             reverse('activate-account', kwargs={'uid64': uid, 'token': token})
         )
         send_mail(
-            subject="Подтвердите ваш аккаунт",
-            message=f"Перейдите по ссылке, чтобы подтвердить аккаунт: {activation_link}",
-            from_email="no-reply",
+            subject="Verify your account",
+            message=f"Follow the link to confirm your account: {activation_link}",
+            from_email=None,
             recipient_list=[user.email],
         )
 

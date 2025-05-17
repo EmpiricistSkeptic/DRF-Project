@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Sum 
 from django.utils import timezone
 from datetime import timedelta
-from api.models import Profile, Task, Quest, ConsumedCalories, UserNutritionGoal
+from api.models import Profile, Task, Quest, ConsumedCalories, UserNutritionGoal, UserHabit
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,8 @@ def _get_user_context(user):
             "active_quests_summary": "Active Quests: No data",
             "user_level": 1,
             "completed_tasks_summary_weekly": "Completed tasks: No data",
-            "completed_quests_summary_weekly": "Completed quests: No data"
+            "completed_quests_summary_weekly": "Completed quests: No data",
+            "active_habits_streak_summary": "Active habits: No data"
         }
         try:
             profile = Profile.objects.select_related('user').get(user=user)
@@ -50,7 +51,7 @@ def _get_user_context(user):
             all_tasks = Task.objects.filter(user=user)
             completed_task_count = all_tasks.filter(completed=True).count()
 
-            weekly_tasks = Task.objects.filter(user=user, completed=True, updated__gte=timezone.now() - timedelta(days=7)).order_by('-updated') # Добавим сортировку по дате завершения
+            weekly_tasks = Task.objects.filter(user=user, completed=True, updated__gte=timezone.now() - timedelta(days=7)).order_by('-updated') 
 
             if weekly_tasks.exists():
                 weekly_task_list = []
@@ -104,12 +105,16 @@ def _get_user_context(user):
                 )
             else:
                 context["completed_quests_summary_weekly"] = "Quests completed in the last week: None"
+
+
+            # --- Habits ---
             
             
+        
             # --- Базовая информация об игроке ---
             context["user_data_summary"] = (
                 f"Name: {user_name}, Level: {user_level}, Points: {user_points}/{xp_threshold} Points, "
-                f"Completed Tasks: {completed_task_count}, Completed Quests: {completed_quest_count}"
+                f"Completed Tasks: {completed_task_count}, Completed Quests: {completed_quest_count} Active Habits"
                 
             )
             context["user_level"] = user_level
