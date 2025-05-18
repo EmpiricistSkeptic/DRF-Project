@@ -66,7 +66,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     'rest_framework_simplejwt.token_blacklist',
-    "pytest_django",
+    #"pytest_django",
     "api",
     "django_celery_beat",
     "corsheaders",

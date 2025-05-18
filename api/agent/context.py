@@ -21,6 +21,7 @@ def _get_user_context(user):
         RECENT_TASKS_LIMIT = 35
         RECENT_FOOD_LIMIT = 20
         ACTIVE_TASKS_LIMIT = 15
+        ACTIVE_HABITS_LIMIT = 15
 
         context = {
             "user_data_summary": "Status: Error loading data",
@@ -51,12 +52,24 @@ def _get_user_context(user):
             all_tasks = Task.objects.filter(user=user)
             completed_task_count = all_tasks.filter(completed=True).count()
 
-            weekly_tasks = Task.objects.filter(user=user, completed=True, updated__gte=timezone.now() - timedelta(days=7)).order_by('-updated') 
+            weekly_tasks = Task.objects.select_related('category', 'unit_type').filter(
+                user=user, 
+                completed=True, 
+                updated__gte=timezone.now() - timedelta(days=7)
+            ).order_by('-updated') 
 
             if weekly_tasks.exists():
                 weekly_task_list = []
                 for t in weekly_tasks:
-                    task_line = f"- {t.title} (+{t.points} Points)"
+                    # Add category information if available
+                    category_info = f" [{t.category.name}]" if t.category else ""
+                    
+                    # Add unit information if available
+                    unit_info = ""
+                    if t.unit_type and t.unit_amount > 0:
+                        unit_info = f" ({t.unit_amount} {t.unit_type.symbol})"
+                    
+                    task_line = f"- {t.title}{category_info}{unit_info} (+{t.points} Points)"
                     if t.description:
                         task_line += f"\n  Details: {t.description}"
                     weekly_task_list.append(task_line)
@@ -68,15 +81,41 @@ def _get_user_context(user):
                 context["completed_tasks_summary_weekly"] = "Tasks completed in the last week: None"
 
             # Активные задачи (с ограничением)
-            active_tasks = all_tasks.filter(completed=False).order_by('-created')[:ACTIVE_TASKS_LIMIT]
-            active_tasks_list = [f"- {t.title} (untill {t.deadline.strftime('%Y-%m-%d %H:%M') if t.deadline else 'N/A'})" for t in active_tasks]
-            context["active_tasks_summary"] = f"Active tasks ({len(active_tasks_list)} from {all_tasks.filter(completed=False).count()}):\n" + ('\n'.join(active_tasks_list) if active_tasks_list else "No")
+            active_tasks = all_tasks.select_related('category', 'unit_type').filter(
+                completed=False
+            ).order_by('-updated')[:ACTIVE_TASKS_LIMIT]
+            
+            active_tasks_list = []
+            for t in active_tasks:
+                # Add category information if available
+                category_info = f" [{t.category.name}]" if t.category else ""
+                
+                # Add unit information if available
+                unit_info = ""
+                if t.unit_type and t.unit_amount > 0:
+                    unit_info = f" ({t.unit_amount} {t.unit_type.symbol})"
+                
+                deadline_info = f" (until {t.deadline.strftime('%Y-%m-%d %H:%M')})" if t.deadline else " (no deadline)"
+                active_tasks_list.append(f"- {t.title}{category_info}{unit_info}{deadline_info}")
+            
+            context["active_tasks_summary"] = f"Active tasks ({len(active_tasks_list)} from {all_tasks.filter(completed=False).count()}):\n" + ('\n'.join(active_tasks_list) if active_tasks_list else "No active tasks")
 
             # Недавно выполненные задачи (с ограничением)
-            recent_completed_tasks = all_tasks.filter(completed=True).order_by('-updated')[:RECENT_TASKS_LIMIT]
+            recent_completed_tasks = all_tasks.select_related('category', 'unit_type').filter(
+                completed=True
+            ).order_by('-updated')[:RECENT_TASKS_LIMIT]
+            
             recent_completed_details_list = []
             for t in recent_completed_tasks:
-                task_line = f"- {t.title} (+{t.points} Points)"
+                # Add category information if available
+                category_info = f" [{t.category.name}]" if t.category else ""
+                
+                # Add unit information if available
+                unit_info = ""
+                if t.unit_type and t.unit_amount > 0:
+                    unit_info = f" ({t.unit_amount} {t.unit_type.symbol})"
+                
+                task_line = f"- {t.title}{category_info}{unit_info} (+{t.points} Points)"
                 if t.description:
                     task_line += f"\n  Details: {t.description}"
                 recent_completed_details_list.append(task_line)
@@ -108,14 +147,26 @@ def _get_user_context(user):
 
 
             # --- Habits ---
-            
-            
-        
+            all_active_habits = UserHabit.objects.filter(user=user, is_active=True).order_by('-streak', 'created_at')[:ACTIVE_HABITS_LIMIT]
+            all_active_habits_list = []
+
+            for h in all_active_habits:
+                habit_line = f"- {h.title} (Streak: {h.streak} days, Frequency: {h.get_frequency_display()})"
+                if h.description:
+                    habit_line += f"\n  Details: {h.description}"
+                
+                if h.last_tracked:
+                    habit_line += f"\n  Last tracked: {h.last_tracked.strftime('%Y-%m-%d')}"
+                    
+                all_active_habits_list.append(habit_line)
+
+            context["active_habits_streak_summary"] = f"Active habits with streaks ({len(all_active_habits_list)}):\n" + ('\n'.join(all_active_habits_list) if all_active_habits_list else "None")
+
             # --- Базовая информация об игроке ---
             context["user_data_summary"] = (
                 f"Name: {user_name}, Level: {user_level}, Points: {user_points}/{xp_threshold} Points, "
-                f"Completed Tasks: {completed_task_count}, Completed Quests: {completed_quest_count} Active Habits"
-                
+                f"Completed Tasks: {completed_task_count}, Completed Quests: {completed_quest_count}, "
+                f"Active Habits: {all_active_habits.count()}"
             )
             context["user_level"] = user_level
 
