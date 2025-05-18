@@ -134,7 +134,6 @@ scipy==1.14.1
 seaborn==0.13.2
 Send2Trash==1.8.3
 sendgrid==6.12.2
-sendgrid-django==4.2.0
 setuptools==75.6.0
 six==1.16.0
 smmap==5.0.1
