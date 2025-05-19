@@ -22,6 +22,7 @@ from api.users.tokens import account_activation_token
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
+        model = User
         fields = ['id', 'username', 'email']
 
 
