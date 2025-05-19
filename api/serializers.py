@@ -162,7 +162,7 @@ class UserRegistrationSerializer(ModelSerializer):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = account_activation_token.make_token(user)
         activation_link = self.context['request'].build_absolute_uri(
-            reverse('activate-account', kwargs={'uid64': uid, 'token': token})
+            reverse('activate-account', kwargs={'uidb64': uid, 'token': token})
         )
         send_mail(
             subject="Verify your account",
