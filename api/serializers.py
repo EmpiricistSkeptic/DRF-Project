@@ -3,6 +3,8 @@ from rest_framework import serializers
 from .models import (
     Task, Profile, Friendship, Message, Notification, Group, GroupMessage, ConsumedCalories, Achievement, UserAchievement, UserNutritionGoal, Quest, UserHabit, Achievement, UserAchievement, Category, UnitType
 )
+from django.conf import settings
+
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.utils import timezone
@@ -16,6 +18,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.urls import reverse
 from api.users.tokens import account_activation_token
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = ['id', 'username', 'email']
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -167,14 +174,16 @@ class UserRegistrationSerializer(ModelSerializer):
         send_mail(
             subject="Verify your account",
             message=f"Follow the link to confirm your account: {activation_link}",
-            from_email=None,
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
         )
+        user_data = UserSerializer(user).data
 
         return {
-            'user': user,
+            'user': user_data,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'message': 'User registered successfully. Please check your email to activate.'
         }
     
       
