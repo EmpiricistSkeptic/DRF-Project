@@ -45,9 +45,9 @@ class RegistrationAPIView(generics.GenericAPIView):
 class ActivateAccountAPIView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
-    def get(self, request, uid64, token, *args, **kwargs):
+    def get(self, request, uidb64, token, *args, **kwargs):
         try:
-            uid = force_str(urlsafe_base64_decode(uid64))
+            uid = force_str(urlsafe_base64_decode(uidb64))
             user = get_object_or_404(User, pk=uid)
         except (TypeError, ValueError, OverflowError):
             return Response({'detail': 'Неверная ссылка активации.'}, status=status.HTTP_400_BAD_REQUEST)
