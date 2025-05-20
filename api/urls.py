@@ -30,7 +30,8 @@ router.register(r'unit-types', UnitTypeViewSet)
 
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
+    path('', include(groups_router.urls)),
 
     path('register/', views.RegistrationAPIView.as_view(), name='register'),
     path('activate/<uidb64>/<token>/', views.ActivateAccountAPIView.as_view(), name='activate-account'),
