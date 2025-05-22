@@ -114,13 +114,22 @@ class TaskViewSet(viewsets.ModelViewSet):
             f"Пользователь {user.username} УДАЛИЛ задачу id={task_id}: '{task_title[:30]}...'"
         )
 
-    @action(detail=True, methods=['put'], name='Complete Task', url_path='complete')
+    from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import transaction
+
+class TaskViewSet(viewsets.ModelViewSet):
+    # ... другие методы ...
+    
+    @action(detail=True, methods=['put'], url_path='complete')
     def complete(self, request, pk=None):
         """
         Помечает задачу как выполненную и начисляет очки/уровень пользователю.
         """
+        print(f"Complete action called with method: {request.method}")  # Для отладки
+        
         task = self.get_object()
-
         if task.completed:
             logger.warning(f"Попытка повторно завершить уже выполненную задачу id={task.id} пользователем {request.user.username}")
             serializer = self.get_serializer(task)
@@ -128,43 +137,36 @@ class TaskViewSet(viewsets.ModelViewSet):
                 {"detail": "Task is already completed.", "task": serializer.data},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         try:
             with transaction.atomic():
                 task.completed = True
                 task.save()
                 logger.info(f"Задача id={task.id} помечена как выполненная пользователем {request.user.username}")
-
             
                 try:
-                    profile = request.user.profile # или task.user.profile
+                    profile = request.user.profile
                 except AttributeError:
                     logger.error(f"Не найден профиль для пользователя {request.user.username} при завершении задачи id={task.id}")
                     return Response({"error": "User profile not found."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
+                    
                 original_points = profile.points
                 original_level = profile.level
-
                 profile.points += task.points 
-
                 xp_threshold = int(1000 * (1.5 ** (profile.level - 1)))
                 while profile.points >= xp_threshold:
                     profile.level += 1
                     profile.points -= xp_threshold
                     xp_threshold = int(1000 * (1.5 ** (profile.level - 1)))
-
                 profile.save()
                 logger.info(
                     f"Обновлен профиль пользователя {request.user.username}: "
                     f"Очки {original_points} -> {profile.points}, "
                     f"Уровень {original_level} -> {profile.level}"
                 )
-
         except Exception as e:
             logger.exception(f"Ошибка при завершении задачи id={task.id} пользователем {request.user.username}: {e}")
             return Response({"error": "An error occurred while completing the task."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            
         serializer = self.get_serializer(task)
         return Response(serializer.data, status=status.HTTP_200_OK)
     

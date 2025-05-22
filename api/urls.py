@@ -29,6 +29,10 @@ router.register(r'categories', CategoryViewSet)
 router.register(r'unit-types', UnitTypeViewSet)
 
 
+print("Router URLs:")
+for pattern in router.urls:
+    print(f"  {pattern.pattern} -> {pattern.name}")
+
 urlpatterns = [
     path('', include(router.urls)),
     path('', include(groups_router.urls)),
