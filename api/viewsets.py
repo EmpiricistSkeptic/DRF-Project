@@ -114,13 +114,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             f"Пользователь {user.username} УДАЛИЛ задачу id={task_id}: '{task_title[:30]}...'"
         )
 
-    from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import status
-from django.db import transaction
-
-class TaskViewSet(viewsets.ModelViewSet):
-    # ... другие методы ...
     
     @action(detail=True, methods=['put'], url_path='complete')
     def complete(self, request, pk=None):
