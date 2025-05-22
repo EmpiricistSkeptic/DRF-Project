@@ -120,7 +120,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         """
         Помечает задачу как выполненную и начисляет очки/уровень пользователю.
         """
-        print(f"Complete action called with method: {request.method}")  # Для отладки
+        print(f"Complete action called with method: {request.method}") 
+
+        if request.method == 'OPTIONS':
+            return Response(status=status.HTTP_200_OK)
         
         task = self.get_object()
         if task.completed:
