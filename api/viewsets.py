@@ -114,7 +114,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             f"Пользователь {user.username} УДАЛИЛ задачу id={task_id}: '{task_title[:30]}...'"
         )
 
-    @action(detail=True, methods=['put'], name='Complete Task')
+    @action(detail=True, methods=['put'], name='Complete Task', url_path='complete')
     def complete(self, request, pk=None):
         """
         Помечает задачу как выполненную и начисляет очки/уровень пользователю.
