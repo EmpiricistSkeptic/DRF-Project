@@ -1023,7 +1023,7 @@ class UserAchievementViewSet(viewsets.ReadOnlyModelViewSet):
         """
         Получение прогресса всех достижений пользователя в удобном формате
         """
-        progress_data = AchievementService.get_achievement_progress(self.request.user)
+        progress_data = AchievementService.get_achievements_progress(self.request.user)
         return Response(progress_data)
 
     
