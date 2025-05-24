@@ -29,10 +29,6 @@ router.register(r'categories', CategoryViewSet)
 router.register(r'unit-types', UnitTypeViewSet)
 
 
-print("=== ROUTER URLs ===")
-for pattern in router.urls:
-    print(f"{pattern.pattern} -> {pattern.name}")
-print("===================")
 
 urlpatterns = [
     path('', include(router.urls)),
