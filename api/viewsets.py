@@ -905,74 +905,76 @@ class ConsumedCaloriesViewSet(viewsets.ModelViewSet):
     lookup_id = 'id'
 
 
-def get_queryset(self):
-    return ConsumedCalories.objects.filter(user=self.request.user)
+    def get_queryset(self):
+        return ConsumedCalories.objects.filter(user=self.request.user)
 
 
-@action(detail=False, methods=['get'], url_path=r'by-days/(?P<period>week|month)')
-def by_days(self, request, period=None):
-    today = now().date()
-    if period == 'week':
-        start = today - timedelta(days=7)
-    else:
-        start = today - timedelta(days=30)
+    @action(detail=False, methods=['get'], url_path=r'by-days/(?P<period>week|month)')
+    def by_days(self, request, period=None):
+        today = now().date()
+        if period == 'week':
+            start = today - timedelta(days=7)
+        else:
+            start = today - timedelta(days=30)
 
-    records = (
-        self.get_queryset()
-        .filter(consumed_at__date__gte=start)
-        .annotate(date=TruncDate('consumed_at'))
-        .values('date')
-        .annotate(
+        records = (
+            self.get_queryset()
+            .filter(consumed_at__date__gte=start)
+            .annotate(date=TruncDate('consumed_at'))
+            .values('date')
+            .annotate(
+                total_calories=Sum('calories'),
+                total_proteins=Sum('proteins'),
+                total_fats=Sum('fats'),
+                total_carbs=Sum('carbs')
+            )
+            .order_by('date')
+        )
+        return Response(records)
+
+
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        today = now().date()
+
+        daily = self.get_queryset().filter(consumed_at__date=today).aggregate(
             total_calories=Sum('calories'),
             total_proteins=Sum('proteins'),
             total_fats=Sum('fats'),
             total_carbs=Sum('carbs')
         )
-        .order_by('date')
-    )
-    return Response(records)
+        for k, v in daily.items():
+            daily[k] = v or 0
 
+        try:
+            goals_obj = UserNutritionGoal.objects.get(user=request.user)
+            goals = UserNutritionGoalSerializer(goals_obj).data
+            goal_id = goals_obj.id
+        except UserNutritionGoal.DoesNotExist:
+            goals = {
+                'calories_goal': 1800,
+                'proteins_goal': 50,
+                'fats_goal': 70,
+                'carbs_goal': 300,
+            }
+            goal_id = None
+            
+        meals = self.get_queryset().filter(consumed_at__date=today).order_by('-consumed_at')
+        meals_data = ConsumedCaloriesSerializer(meals, many=True).data
 
-@action(detail=False, methods=['get'], url_path='summary')
-def summary(self, request):
-    today = now().date()
-
-    daily = self.get_queryset().filter(consumed_at__date=today).aggregate(
-        total_calories=Sum('calories'),
-        total_proteins=Sum('proteins'),
-        total_fats=Sum('fats'),
-        total_carbs=Sum('carbs')
-    )
-    for k, v in daily.items():
-        daily[k] = v or 0
-
-    try:
-        goals_obj = UserNutritionGoal.objects.get(user=request.user)
-        goals = UserNutritionGoalSerializer(goals_obj).data
-        goal_id = goals_obj.id
-    except UserNutritionGoal.DoesNotExist:
-        goals = {
-            'calories_goal': 1800,
-            'proteins_goal': 50,
-            'fats_goal': 70,
-            'carbs_goal': 300,
+        response = {
+            **daily,
+            **goals,
+            'goal_id': goal_id,
+            'meals': meals_data,
+            'remaining': {
+                'calories': goals['calories_goal'] - daily['total_calories'],
+                'proteins': goals['proteins_goal'] - daily['total_proteins'],
+                'fats': goals['fats_goal'] - daily['total_fats'],
+                'carbs': goals['carbs_goal'] - daily['total_carbs']
+            }
         }
-    meals = self.get_queryset().filter(consumed_at__date=today).order_by('-consumed_at')
-    meals_data = ConsumedCaloriesSerializer(meals, many=True).data
-
-    response = {
-        **daily,
-        **goals,
-        'goal_id': goal_id,
-        'meals': meals_data,
-        'remaining': {
-            'calories': goals['calories_goal'] - daily['total_calories'],
-            'proteins': goals['proteins_goal'] - daily['total_proteins'],
-            'fats': goals['fats_goal'] - daily['total_fats'],
-            'carbs': goals['carbs_goal'] - daily['total_carbs']
-        }
-    }
-    return Response(response)
+        return Response(response)
 
 
 class UserNutritionGoalViewSet(
