@@ -980,7 +980,8 @@ class ConsumedCaloriesViewSet(viewsets.ModelViewSet):
 class UserNutritionGoalViewSet(
     viewsets.GenericViewSet,
     mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin
 ):
     serializer_class = UserNutritionGoalSerializer
     permission_classes = [IsAuthenticated]
