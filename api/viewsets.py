@@ -949,6 +949,7 @@ def summary(self, request):
     try:
         goals_obj = UserNutritionGoal.objects.get(user=request.user)
         goals = UserNutritionGoalSerializer(goals_obj).data
+        goal_id = goals_obj.id
     except UserNutritionGoal.DoesNotExist:
         goals = {
             'calories_goal': 1800,
@@ -962,6 +963,7 @@ def summary(self, request):
     response = {
         **daily,
         **goals,
+        'goal_id': goal_id,
         'meals': meals_data,
         'remaining': {
             'calories': goals['calories_goal'] - daily['total_calories'],
