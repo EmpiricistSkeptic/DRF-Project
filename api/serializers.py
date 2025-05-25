@@ -321,8 +321,8 @@ class GroupMessageSerializer(serializers.ModelSerializer):
 class ConsumedCaloriesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConsumedCalories
-        fields = ['id', 'user', 'product_name', 'calories', 'proteins', 'fats', 'carbs', 'weight']
-        read_only_fields = ['id', 'user']
+        fields = ['id', 'user', 'product_name', 'calories', 'proteins', 'fats', 'carbs', 'weight', 'consumed_at']
+        read_only_fields = ['id', 'user', 'consumed_at']
 
 
 class UserNutritionGoalSerializer(serializers.ModelSerializer):
