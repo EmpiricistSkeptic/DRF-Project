@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from api.models import Task, Profile, Quest, UserHabit
 from django.utils import timezone
 
+
 class UserFactory(factory.django.DjangoModelFactory):
     username = factory.Sequence(lambda n: f"user{n}")
     email = factory.LazyAttribute(lambda u: f"{u.username}@test.com")
@@ -21,7 +22,6 @@ class HabitFactory(factory.django.DjangoModelFactory):
 
     class Meta:
         model = UserHabit
-
 
 
 class TaskFactory(factory.django.DjangoModelFactory):
@@ -44,19 +44,17 @@ class ProfileFactory(factory.django.DjangoModelFactory):
         model = Profile
 
 
-
-
 class QuestFactory(factory.django.DjangoModelFactory):
     user = factory.SubFactory(UserFactory)
-    title = factory.Sequence(lambda n: f'Quest {n}')
-    status = 'ACTIVE'
+    title = factory.Sequence(lambda n: f"Quest {n}")
+    status = "ACTIVE"
     reward_points = 100
     completed_at = None
 
     @factory.post_generation
     def mark_completed(self, create, extracted, **kwargs):
-        if extracted: 
-            self.status = 'COMPLETED'
+        if extracted:
+            self.status = "COMPLETED"
             self.completed_at = timezone.now()
             if create:
                 self.save()

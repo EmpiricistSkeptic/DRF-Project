@@ -3,6 +3,7 @@ from django.utils import timezone
 from .models import Task
 from datetime import timedelta
 
+
 @shared_task
 def check_task_deadline():
     now = timezone.now()
@@ -11,5 +12,3 @@ def check_task_deadline():
         user_profile = task.user.profile
         user_profile.points = max(0, user_profile.points - 150)
         user_profile.save()
-
-

@@ -16,7 +16,6 @@ def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
 
 
-
 @receiver(post_save, sender=User)
 def create_user_achievements(sender, instance, created, **kwargs):
     """
@@ -25,15 +24,13 @@ def create_user_achievements(sender, instance, created, **kwargs):
     if created:
         AchievementService.register_user_achievements(instance)
 
+
 @receiver(post_save, sender=Task)
 def update_achievements_on_task_completion(sender, instance, **kwargs):
     """
     Обновление прогресса достижений при выполнении задачи
     """
-    if instance.completed: 
-        AchievementService.update_achievements_on_task_completion(instance.user, instance)
-
-
-
-
-        
+    if instance.completed:
+        AchievementService.update_achievements_on_task_completion(
+            instance.user, instance
+        )
